@@ -1,26 +1,24 @@
 import asyncio
-import datetime
-import json
 import logging
 import sys
 import threading
-from dataclasses import dataclass
 from os import getenv
 
-import requests
-from aiogram import Bot, Dispatcher, html
+from aiogram import Bot, Dispatcher, F, Router, types
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.filters import CommandStart
+from aiogram.filters import Command, CommandStart
+# from aiogram.filters.command import Command
 from aiogram.types import Message
 
-from data import data
-from service import handle_fio, handle_lessons
+from service import handle_fio, handle_groups, handle_lessons
 
 dp = Dispatcher()
+router = Router(name=__name__)
 
-@dp.message()
-async def echo_handler(message: Message) -> None:
+
+@router.message(F.text)
+async def msg_handler(message: Message) -> None:
     ## Initialize tokens
     tokens = message.text.split(" ")
     while len(tokens) < 3:
@@ -28,15 +26,34 @@ async def echo_handler(message: Message) -> None:
 
     match tokens[0].lower():
         case "пары":
-           await handle_lessons(message, tokens) 
+            await handle_lessons(message, tokens)
         case "фио":
             await handle_fio(message, tokens)
-        case _:
-            await message.answer("Не понимаю тебя...\n\nНа данный момент можно узнать <b>пары</b> и <b>фио</b>", parse_mode=ParseMode.HTML)
+        case "группы":
+            await handle_groups(message, tokens)
+
+
+@dp.message(Command("help"))
+async def cmd_help(message: Message) -> None:
+    await message.answer(
+"""   Привет! Я помогу тебе узнать все о расписаниях, группах и преподавателях
+
+На данный момент можно узнать <b>пары</b> и <b>фио</b>
+
+<b>Пары:</b>    <i>пары  [номер группы]  [сегодня | завтра | неделя]</i>
+Пример:    пары 921 сегодня
+Примечание:    "сегодня" писать необязательно, "пары 921" тоже будет работать
+
+<b>Фио:</b>     <i>фио  [фамилия]</i>
+Пример:   фио Димитриев"""
+    )
+
 
 async def main() -> None:
     TOKEN = getenv("BOT_TOKEN")
     bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+
+    dp.include_router(router)
     await dp.start_polling(bot)
 
 
