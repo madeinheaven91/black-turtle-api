@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime, timedelta, date
 import json
 import locale
 
@@ -8,6 +8,7 @@ from aiogram.types import Message
 from data import data
 from utils import *
 
+
 async def handle_lessons(message: Message, tokens: list[str]) -> None:
     locale.setlocale(locale.LC_TIME, "ru_RU.UTF-8")
     group_query = tokens[1]
@@ -15,27 +16,13 @@ async def handle_lessons(message: Message, tokens: list[str]) -> None:
 
     match tokens[2].lower():
         case "" | "сегодня":
-            query_date = datetime.date.today()
+            query_date = date.today()
         case "завтра":
-            query_date = datetime.date.today() + datetime.timedelta(days=1)
+            query_date = date.today() + timedelta(days=1)
         case "послезавтра":
-            query_date = datetime.date.today() + datetime.timedelta(days=2)
+            query_date = date.today() + timedelta(days=2)
         case _:
-            query_date = datetime.date.today()
-
-    ### LOGGING ###
-    print(
-        "\t"
-            + str(datetime.datetime.now().strftime("%d.%m.%y %H:%M:%S"))
-        + " "
-        + str(message.from_user.full_name)
-        + " (@"
-        + str(message.from_user.username)
-        + ") requested "
-        + str(group_query)
-        + " for "
-        + str(query_date.strftime("%d.%m.%y"))
-    )
+            query_date = date.today()
 
     if tokens[1] == "":
         await message.answer(

@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime
 import logging
 import sys
 from os import getenv
@@ -10,6 +11,7 @@ from aiogram.filters import Command
 from aiogram.types import Message
 
 from handlers import handle_fio, handle_groups, handle_lessons
+from utils import log_request
 
 dp = Dispatcher()
 router = Router(name=__name__)
@@ -24,14 +26,19 @@ async def msg_handler(message: Message) -> None:
 
     match tokens[0].lower():
         case "пары":
+            log_request(message) 
             await handle_lessons(message, tokens)
         case "фио":
+            log_request(message) 
             await handle_fio(message, tokens)
         case "группы":
+            log_request(message) 
             await handle_groups(message, tokens)
+
 
 @dp.message(Command("start"))
 async def cmd_start(message: Message) -> None:
+    log_request(message) 
     await message.answer(
         """   Привет! Я помогу тебе узнать все о расписаниях, группах и преподавателях
 
@@ -48,10 +55,12 @@ async def cmd_start(message: Message) -> None:
 <i>Если нашли ошибку, пишите сюда: @madeinheaven91</i>"""
     )
 
+
 @dp.message(Command("help"))
 async def cmd_help(message: Message) -> None:
+    log_request(message) 
     await message.answer(
-"""<b>Пары:</b>    <i>пары  [номер группы]  [сегодня | завтра | неделя]</i>
+        """<b>Пары:</b>    <i>пары  [номер группы]  [сегодня | завтра | неделя]</i>
 Пример:    пары 921 сегодня
 Примечание:    "сегодня" писать необязательно, "пары 921" тоже будет работать
 
@@ -77,5 +86,5 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+    logging.basicConfig(level=logging.WARNING, stream=sys.stdout)
     asyncio.run(main())

@@ -2,6 +2,10 @@
 ### Utils ###
 #############
 from dataclasses import dataclass
+from datetime import datetime
+from time import strftime
+
+from aiogram.types import Message
 
 
 @dataclass()
@@ -114,3 +118,15 @@ req_headers = {
     "Content-Type": "application/json",
     "Accept": "*/*",
 }
+
+def log_request(message: Message):
+    ### LOGGING ###
+    # print(
+    #     str(datetime.now().strftime("[ %d.%m.%y | %H:%M:%S ] "))
+    #     + str(message.from_user.full_name)
+    #     + " (@"
+    #     + str(message.from_user.username)
+    #     + ") requested "
+    #     + str(message.text)
+    # )
+    print(f"{datetime.now().strftime("[ %d.%m.%y | %H:%M:%S ]")} {str(message.from_user.username)} requested {str(message.text)}")
