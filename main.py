@@ -1,5 +1,4 @@
 import asyncio
-from datetime import datetime
 import logging
 import sys
 from os import getenv
@@ -34,6 +33,13 @@ async def msg_handler(message: Message) -> None:
         case "группы":
             log_request(message) 
             await handle_groups(message, tokens)
+
+@dp.message(Command("kill"))
+async def cmd_kill(message: Message) -> None:
+    log_request(message)
+    if message.from_user.id == 2087648271:
+        await message.answer("Я умер")
+        await dp.stop_polling()
 
 
 @dp.message(Command("start"))

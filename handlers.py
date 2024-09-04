@@ -1,6 +1,6 @@
 import json
 import locale
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 import requests
 from aiogram.types import Message
