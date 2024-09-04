@@ -1,7 +1,6 @@
 import datetime
 import json
 import locale
-from dataclasses import dataclass
 
 import requests
 from aiogram.types import Message
@@ -9,23 +8,10 @@ from aiogram.types import Message
 from data import data
 from utils import *
 
-
-
-
-### Токены:
-# 1) "пары"
-# 2) номер группы
-# 3) "" (сегодня) / "завтра" / "неделя"
 async def handle_lessons(message: Message, tokens: list[str]) -> None:
     locale.setlocale(locale.LC_TIME, "ru_RU.UTF-8")
     group_query = tokens[1]
     group_id = data.group_to_id.get(group_query)
-
-    if tokens[1] == "":
-        await message.answer(
-            "Что-то пошло не так...\nПропишите <i>/help</i> для вывода списка команд"
-        )
-        return
 
     match tokens[2].lower():
         case "" | "сегодня":
@@ -37,21 +23,28 @@ async def handle_lessons(message: Message, tokens: list[str]) -> None:
         case _:
             query_date = datetime.date.today()
 
+    ### LOGGING ###
+    print(
+        "\t"
+            + str(datetime.datetime.now().strftime("%d.%m.%y %H:%M:%S"))
+        + " "
+        + str(message.from_user.full_name)
+        + " (@"
+        + str(message.from_user.username)
+        + ") requested "
+        + str(group_query)
+        + " for "
+        + str(query_date.strftime("%d.%m.%y"))
+    )
+
+    if tokens[1] == "":
+        await message.answer(
+            "Что-то пошло не так...\nПропишите <i>/help</i> для вывода списка команд"
+        )
+        return
     if group_id is None:
         await message.answer("Такой группы нет")
         return
-    else:
-        print(
-            "\t\t"
-            + str(message.from_user.full_name)
-            + " (@"
-            + str(message.from_user.username)
-            + ") requested "
-            + str(group_query)
-            + " (id: "
-            + str(group_id)
-            + ")"
-        )
 
     payload = {
         "groupId": group_id,
@@ -70,18 +63,7 @@ async def handle_lessons(message: Message, tokens: list[str]) -> None:
             temp.append(json_to_lesson(lesson))
     temp = sorted(temp, key=lambda x: x.start_time)
 
-    lessons_today = []
-    for i in range(len(temp)):
-        if i == len(temp) - 1:
-            lessons_today.append(temp[i])
-            continue
-
-        if temp[i].start_time == temp[i + 1].start_time:
-            lessons_today.append(combine_simultaneous(temp[i], temp[i + 1]))
-        elif temp[i].start_time == temp[i - 1].start_time:
-            ()
-        else:
-            lessons_today.append(temp[i])
+    lessons_today = collapse(temp)
 
     res = (
         "<b>"
@@ -112,6 +94,7 @@ async def handle_lessons(message: Message, tokens: list[str]) -> None:
 
     await message.answer(res)
 
+
 async def handle_fio(message: Message, tokens: list[str]) -> None:
     if tokens[1] == "":
         await message.answer(
@@ -131,6 +114,8 @@ async def handle_fio(message: Message, tokens: list[str]) -> None:
     # 1) группы
     # 2) курсы, спец
     # 3)
+
+
 async def handle_groups(message: Message, tokens: list[str]) -> None:
     if tokens[1] == "":
         await message.answer(

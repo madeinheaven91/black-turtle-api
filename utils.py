@@ -69,6 +69,7 @@ def json_to_lesson(data) -> Lesson:
         number,
     )
 
+
 def combine_simultaneous(les1: Lesson, les2: Lesson) -> Lesson:
     return Lesson(
         name=les1.name,
@@ -90,10 +91,26 @@ def lessons_declension(count: int) -> str:
     else:
         return "уроков"
 
+
+def collapse(lessons: list[Lesson]) -> list[Lesson]:
+    res = []
+    for i in range(len(lessons)):
+        if i == len(lessons) - 1:
+            res.append(lessons[i])
+            continue
+
+        if lessons[i].start_time == lessons[i + 1].start_time:
+            res.append(combine_simultaneous(lessons[i], lessons[i + 1]))
+        elif lessons[i].start_time == lessons[i - 1].start_time:
+            ()
+        else:
+            res.append(lessons[i])
+    return res
+
+
 schedule_url = "https://schedule.mstimetables.ru/api/publications/group/lessons"
 req_headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/112.0",
     "Content-Type": "application/json",
     "Accept": "*/*",
 }
-
