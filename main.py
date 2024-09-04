@@ -9,7 +9,7 @@ from aiogram.enums import ParseMode
 from aiogram.filters import Command
 from aiogram.types import Message
 
-from service import handle_fio, handle_groups, handle_lessons
+from handlers import handle_fio, handle_groups, handle_lessons
 
 dp = Dispatcher()
 router = Router(name=__name__)
@@ -37,7 +37,7 @@ async def cmd_start(message: Message) -> None:
 
 На данный момент можно узнать <b>пары</b> и <b>фио</b>
 
-<b>Пары:</b>    <i>пары  [номер группы]  [сегодня | завтра | неделя]</i>
+<b>Пары:</b>    <i>пары  [номер группы]  [сегодня | завтра | послезавтра | неделя]</i>
 Пример:    пары 921 сегодня
 Примечание:    "сегодня" писать необязательно, "пары 921" тоже будет работать
 
