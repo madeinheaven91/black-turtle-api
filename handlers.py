@@ -108,13 +108,13 @@ async def handle_fio(message: Message, tokens: list[str]) -> None:
         or teacher[2] == teacher_query
     ]
     if teachers == []:
-        await message.answer("⚠️ Такого преподавателя нет...")
+        await message.answer("⚠️ </b>Такого преподавателя нет...</b>\n\n<i>Если нужный учитель не был найден, пишите @madeinheaven91</i>")
         return
 
-    res = "👨‍🏫 Найдены учителя:\n"
+    res = "👨‍🏫 <b>Найдены учителя</b>:\n"
     for teacher in teachers:
         res += f"   {teacher[0]} {teacher[1]} {teacher[2]}\n"
-
+    res += "\n<i>Если нужный учитель не был найден, пишите @madeinheaven91</i>"
     await message.answer(res)
 
 
