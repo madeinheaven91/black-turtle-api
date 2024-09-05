@@ -1,6 +1,7 @@
 import json
 import locale
 from datetime import date, timedelta
+from logging import error
 
 import requests
 from aiogram.types import Message
@@ -33,8 +34,10 @@ async def handle_lessons(message: Message, tokens: list[str]) -> None:
             case "воскресенье" | "вс" | "вос" | "воск":
                 await message.answer("😳 В воскресенье пар нет...")
                 return
-            case _:
+            case "" | "сегодня":
                 query_date = date.today()
+            case _:
+                raise Exception("Unhandled 2nd token")
 
         if tokens[1] == "":
             await message.answer(
@@ -84,18 +87,16 @@ async def handle_lessons(message: Message, tokens: list[str]) -> None:
                 res += "<b>Сегодня нет пар! 🥳🥳🥳</b>\nМожно отдыхать..."
             case _:
                 for index, lesson in enumerate(lessons_today):
-                    res += "———————| " + str(lesson.number) + " урок" + " |———————"
+                    res += "———————| " + str(lesson.index) + " урок" + " |———————"
                     res += "\n\n"
-                    res += (
-                        "⏳ " + lesson.start_time_str + " - " + lesson.end_time_str + "\n"
-                    )
+                    res += "⏳ " + lesson.time_str + "\n"
                     res += "📖 <b>" + lesson.name + "</b>\n"
                     res += "🎓 " + lesson.teacher + "\n"
                     res += "🔑 " + lesson.cabinet + "\n\n"
 
         await message.answer(res)
     except Exception as e:
-        print(e)
+        error(e)
         await message.answer(
                 "🚫 Что-то пошло не так...\nПропишите <i>/help</i> для вывода списка команд"
             )

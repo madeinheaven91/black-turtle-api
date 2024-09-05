@@ -11,6 +11,7 @@ from aiogram.types import Message
 
 from handlers import handle_fio, handle_groups, handle_lessons
 from utils import log_request
+from utils import help_str
 
 dp = Dispatcher()
 router = Router(name=__name__)
@@ -46,36 +47,14 @@ async def cmd_kill(message: Message) -> None:
 async def cmd_start(message: Message) -> None:
     log_request(message) 
     await message.answer(
-        """   Привет! Я помогу тебе узнать все о расписаниях, группах и преподавателях
-
-На данный момент можно узнать <b>пары</b> и <b>фио</b>
-
-<b>Пары:</b>    <i>пары  [номер группы]  [сегодня | завтра | день недели ]</i>
-Пример:    пары 921 сегодня
-Примечание:    "сегодня" писать необязательно, "пары 921" тоже будет работать
-
-<b>Фио:</b>     <i>фио  [фамилия]</i>
-Пример:   фио Димитриев
-Примечание:   имена взяты с сайта tatar.edu, поэтому информация может быть устаревшей или неправильной
-        
-<i>Если нашли ошибку, пишите сюда: @madeinheaven91</i>"""
+       f"\t {help_str}" 
     )
 
 
 @dp.message(Command("help"))
 async def cmd_help(message: Message) -> None:
     log_request(message) 
-    await message.answer(
-        """<b>Пары:</b>    <i>пары  [номер группы]  [сегодня | завтра | день недели ]</i>
-Пример:    пары 921 сегодня
-Примечание:    "сегодня" писать необязательно, "пары 921" тоже будет работать
-
-<b>Фио:</b>     <i>фио  [фамилия]</i>
-Пример:   фио Димитриев
-Примечание:   имена взяты с сайта tatar.edu, поэтому информация может быть устаревшей или неправильной
-        
-<i>Если нашли ошибку, пишите сюда: @madeinheaven91</i>"""
-    )
+    await message.answer(help_str)
 
 
 async def main() -> None:
