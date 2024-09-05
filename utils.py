@@ -4,24 +4,6 @@ from datetime import datetime
 
 from aiogram.types import Message
 
-help_str = """
-<b>Пары:</b>    <i>пары  [номер группы]  [сегодня | завтра | день недели ]</i>
-<i>Примеры:
-        пары 921
-        пары 921 завтра
-        пары 921 вторник
-        пары 921 вт</i>
-Примечание:    "сегодня" писать необязательно, "пары 921" тоже будет работать
-
-<b>Фио:</b>     <i>фио  [фамилия | имя | отчество]</i>
-<i>Примеры:
-        фио Димитриев
-        фио александр
-        фио олегович</i>
-Примечание:   имена взяты с tatar.edu, поэтому информация может быть устаревшей или неправильной
-        
-<u>Если нашли ошибку, пишите сюда: @madeinheaven91</u>"""
-
 schedule_url = "https://schedule.mstimetables.ru/api/publications/group/lessons"
 req_headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/112.0",

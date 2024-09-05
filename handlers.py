@@ -6,9 +6,10 @@ import requests
 from aiogram.types import Message
 
 from utils import *
+from message_strings import *
 
 async def handle_lessons(message: Message, tokens: list[str]) -> None:
-    group_query = tokens[1]
+    group_query = tokens[1].lower()
     if group_query == "":
         await message.answer(
             """⚠️ Укажите группу, пары которой надо узнать.
@@ -92,8 +93,8 @@ async def handle_lessons(message: Message, tokens: list[str]) -> None:
 
 
 async def handle_fio(message: Message, tokens: list[str]) -> None:
-    query = tokens[1].lower().capitalize()
-    if query == "":
+    teacher_query = tokens[1].lower().capitalize()
+    if teacher_query == "":
         await message.answer(
             "Как узнать ФИО преподавателя:\n\n<i>фио  (фамилия)</i>\n\n<b>Например:</b> фио Димитриев"
         )
@@ -102,7 +103,9 @@ async def handle_fio(message: Message, tokens: list[str]) -> None:
     teachers = [
         teacher
         for teacher in teachers_csv
-        if teacher[0] == query or teacher[1] == query or teacher[2] == query
+        if teacher[0] == teacher_query
+        or teacher[1] == teacher_query
+        or teacher[2] == teacher_query
     ]
     if teachers == []:
         await message.answer("⚠️ Такого преподавателя нет...")
@@ -113,6 +116,28 @@ async def handle_fio(message: Message, tokens: list[str]) -> None:
         res += f"   {teacher[0]} {teacher[1]} {teacher[2]}\n"
 
     await message.answer(res)
+
+
+async def handle_bell(message: Message, tokens: list[str]) -> None:
+    type_query = tokens[1].lower()
+    match type_query:
+        case "":
+            if datetime.today().weekday() == 5:
+                is_saturday = True
+            else:
+                is_saturday = False
+        case "суббота" | "сб":
+            is_saturday = True
+        case "будни":
+            is_saturday = False
+        case _:
+            await message.answer("⚠️ Неправильно введена команда")
+            return
+
+    if is_saturday == False:
+        await message.answer(bell_regular_str)
+    else:
+        await message.answer(bell_saturday_str)
 
 
 ### Токены
