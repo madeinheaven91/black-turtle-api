@@ -1,3 +1,4 @@
+import csv
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -12,8 +13,11 @@ help_str = """
         пары 921 вт</i>
 Примечание:    "сегодня" писать необязательно, "пары 921" тоже будет работать
 
-<b>Фио:</b>     <i>фио  [фамилия]</i>
-<i>Пример:   фио Димитриев</i>
+<b>Фио:</b>     <i>фио  [фамилия | имя | отчество]</i>
+<i>Примеры:
+        фио Димитриев
+        фио александр
+        фио олегович</i>
 Примечание:   имена взяты с tatar.edu, поэтому информация может быть устаревшей или неправильной
         
 <u>Если нашли ошибку, пишите сюда: @madeinheaven91</u>"""
@@ -25,6 +29,18 @@ req_headers = {
     "Accept": "*/*",
 }
 
+with open("data/groups.csv", "r") as csv_file:
+    csv_reader = csv.reader(csv_file)
+    next(csv_reader)
+    groups_csv = list(csv_reader)
+
+with open("data/teachers.csv", "r") as csv_file:
+    csv_reader = csv.reader(csv_file)
+    next(csv_reader)
+    teachers_csv = list(csv_reader)
+
+groups_csv = groups_csv
+teachers_csv = teachers_csv
 
 @dataclass()
 class Lesson:

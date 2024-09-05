@@ -1,4 +1,5 @@
 import asyncio
+import locale
 import logging
 import sys
 from os import getenv
@@ -9,13 +10,12 @@ from aiogram.enums import ParseMode
 from aiogram.filters import Command
 from aiogram.types import Message
 
-from handlers import handle_fio, handle_groups, handle_lessons
+from handlers import handle_errors, handle_fio, handle_groups, handle_lessons
 from utils import log_request
 from utils import help_str
 
 dp = Dispatcher()
 router = Router(name=__name__)
-
 
 @router.message(F.text)
 async def msg_handler(message: Message) -> None:
@@ -27,10 +27,10 @@ async def msg_handler(message: Message) -> None:
     match tokens[0].lower():
         case "пары":
             log_request(message) 
-            await handle_lessons(message, tokens)
+            await handle_errors(handle_lessons, message, tokens)
         case "фио":
             log_request(message) 
-            await handle_fio(message, tokens)
+            await handle_errors(handle_fio, message, tokens)
         case "группы":
             log_request(message) 
             await handle_groups(message, tokens)
@@ -56,7 +56,6 @@ async def cmd_help(message: Message) -> None:
     log_request(message) 
     await message.answer(help_str)
 
-
 async def main() -> None:
     TOKEN = getenv("BOT_TOKEN")
 
@@ -64,6 +63,7 @@ async def main() -> None:
         print("Token not found!")
         return
 
+    locale.setlocale(locale.LC_TIME, "ru_RU.UTF-8")
     bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 
     dp.include_router(router)
