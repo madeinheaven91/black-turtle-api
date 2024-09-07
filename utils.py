@@ -11,18 +11,20 @@ req_headers = {
     "Accept": "*/*",
 }
 
+groups_csv = {}
 with open("data/groups.csv", "r") as csv_file:
-    csv_reader = csv.reader(csv_file)
-    next(csv_reader)
-    groups_csv = list(csv_reader)
+    csv_reader = csv.DictReader(csv_file)
+    for row in csv_reader:
+        group_name = row["group_name"]
+        group_id = row["group_id"]
+        groups_csv[group_name] = group_id
 
 with open("data/teachers.csv", "r") as csv_file:
     csv_reader = csv.reader(csv_file)
     next(csv_reader)
     teachers_csv = list(csv_reader)
-
-groups_csv = groups_csv
 teachers_csv = teachers_csv
+
 
 @dataclass()
 class Lesson:
@@ -123,3 +125,46 @@ def log_request(message: Message):
     print(
         f"{datetime.now().strftime('| %d.%m.%y | %H:%M:%S |')} {str(message.from_user.full_name)} ({str(message.from_user.username)}): {str(message.text)}"
     )
+
+
+async def safe_message(message: Message, msg: str) -> None:
+    try:
+        await message.answer(msg)
+    except Exception as e:
+        print(e)
+
+
+def lessons_string(response, query_date: datetime.date):
+    lessons = response.get("lessons")
+
+    if len(lessons) == 0:
+        res = "<b>Пар нет! 🥳🥳🥳</b>\nМожно отдыхать..."
+        return res
+    
+    temp = []
+    for lesson in lessons:
+        if lesson.get("weekday") == query_date.weekday() + 1:
+            temp.append(json_to_lesson(lesson))
+    temp = sorted(temp, key=lambda x: x.start_time)
+    lessons_today = collapse(temp)
+
+    res = (
+        "<b>"
+        + response.get("group").get("name")
+        + "\n"
+        + str(query_date.strftime("%A, "))
+        + str(len(lessons_today))
+        + " "
+        + lessons_declension(len(lessons_today))
+        + "\n"
+        + str(query_date.strftime("%d.%m.%y"))
+        + "</b>\n\n"
+    )
+    for lesson in lessons_today:
+        res += "———————| " + str(lesson.index) + " урок" + " |———————"
+        res += "\n\n"
+        res += "⏳ " + lesson.time_str + "\n"
+        res += "📖 <b>" + lesson.name + "</b>\n"
+        res += "🎓 " + lesson.teacher + "\n"
+        res += "🔑 " + lesson.cabinet + "\n\n"
+    return res

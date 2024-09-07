@@ -5,95 +5,123 @@ from logging import error
 import requests
 from aiogram.types import Message
 
-from utils import *
+from db import db_connect
 from message_strings import *
+from utils import *
 
+
+# TOKENS
+#
+# (0) пары
+# (1) "", "завтра", день недели / group_query
+# (2) "", "завтра", день недели
+#
 async def handle_lessons(message: Message, tokens: list[str]) -> None:
-    group_query = tokens[1].lower()
-    if group_query == "":
-        await message.answer(
-            """⚠️ Укажите группу, пары которой надо узнать.
+    token_fst = tokens[1]
+    token_snd = tokens[2]
 
-            <i>Пример: пары 921</i>"""
+    if token_fst not in groups_csv:
+        date_query = token_fst
+        conn, cur = await db_connect()
+
+        cur.execute(
+            """SELECT chat.selected_group_id FROM Chat where id=%s""",
+            (message.chat.id,),
         )
-        return
+        group_id = cur.fetchone()[0]
 
-    try:
-        group_id = [group for group in groups_csv if group[0] == group_query][0][1]
-    except Exception as e:
-        await message.answer("⚠️ Такой группы нет")
-        return
-
-    match tokens[2].lower():
-        case "завтра":
-            query_date = date.today() + timedelta(days=1)
-        case "понедельник" | "пн" | "пон":
-            query_date = date.today() - timedelta(days=date.today().weekday())
-        case "вторник" | "вт" | "втор":
-            query_date = date.today() - timedelta(days=date.today().weekday() - 1)
-        case "среда" | "ср" | "сред":
-            query_date = date.today() - timedelta(days=date.today().weekday() - 2)
-        case "четверг" | "чт" | "чет":
-            query_date = date.today() - timedelta(days=date.today().weekday() - 3)
-        case "пятница" | "пт" | "пят":
-            query_date = date.today() - timedelta(days=date.today().weekday() - 4)
-        case "суббота" | "сб" | "суб":
-            query_date = date.today() - timedelta(days=date.today().weekday() - 5)
-        case "воскресенье" | "вс" | "вос" | "воск":
-            await message.answer("😳 В воскресенье пар нет...")
+        if group_id is None:
+            await safe_message(
+                message,
+                "Я не знаю, в какой ты группе! Пропиши /start, чтобы выбрать свою группу",
+            )
             return
-        case "" | "сегодня":
-            query_date = date.today()
-        case _:
-            raise Exception("Unhandled 2nd token")
 
-    payload = {
-        "groupId": group_id,
-        "date": str(query_date),
-        "publicationId": "47eff233-d796-4b9d-8099-7abf72277af9",
-    }
+        match date_query:
+            case "завтра":
+                query_date = date.today() + timedelta(days=1)
+            case "понедельник" | "пн" | "пон":
+                query_date = date.today() - timedelta(days=date.today().weekday())
+            case "вторник" | "вт" | "втор":
+                query_date = date.today() - timedelta(days=date.today().weekday() - 1)
+            case "среда" | "ср" | "сред":
+                query_date = date.today() - timedelta(days=date.today().weekday() - 2)
+            case "четверг" | "чт" | "чет":
+                query_date = date.today() - timedelta(days=date.today().weekday() - 3)
+            case "пятница" | "пт" | "пят":
+                query_date = date.today() - timedelta(days=date.today().weekday() - 4)
+            case "суббота" | "сб" | "суб":
+                query_date = date.today() - timedelta(days=date.today().weekday() - 5)
+            case "воскресенье" | "вс" | "вос" | "воск":
+                await message.answer("😳 В воскресенье пар нет...")
+                return
+            case "" | "сегодня":
+                query_date = date.today()
+            case _:
+                raise Exception("Unhandled token")
 
-    response = json.loads(
-        requests.post(schedule_url, json=payload, headers=req_headers).text
-    )
-    lessons = response.get("lessons")
+        payload = {
+            "groupId": group_id,
+            "date": str(query_date),
+            "publicationId": "47eff233-d796-4b9d-8099-7abf72277af9",
+        }
 
-    temp = []
-    for lesson in lessons:
-        if lesson.get("weekday") == query_date.weekday() + 1:
-            temp.append(json_to_lesson(lesson))
-    temp = sorted(temp, key=lambda x: x.start_time)
-    lessons_today = collapse(temp)
+        response = json.loads(
+            requests.post(schedule_url, json=payload, headers=req_headers).text
+        )
 
-    res = (
-        "<b>"
-        + response.get("group").get("name")
-        + "\n"
-        + str(query_date.strftime("%A, "))
-        + str(len(lessons_today))
-        + " "
-        + lessons_declension(len(lessons_today))
-        + "\n"
-        + str(query_date.strftime("%d.%m.%y"))
-        + "</b>\n\n"
-    )
-    match len(lessons_today):
-        case 0:
-            res += "—————————————————\n\n"
-            res += "<b>Сегодня нет пар! 🥳🥳🥳</b>\nМожно отдыхать..."
-        case _:
-            for index, lesson in enumerate(lessons_today):
-                res += "———————| " + str(lesson.index) + " урок" + " |———————"
-                res += "\n\n"
-                res += "⏳ " + lesson.time_str + "\n"
-                res += "📖 <b>" + lesson.name + "</b>\n"
-                res += "🎓 " + lesson.teacher + "\n"
-                res += "🔑 " + lesson.cabinet + "\n\n"
-    await message.answer(res)
+        msg = lessons_string(response, query_date)
+        await safe_message(message, msg)
+        return
+    else:
+        group_query = token_fst
+        date_query = token_snd
+
+        if group_query not in groups_csv:
+            await safe_message(message, "⚠️ Такой группы нет")
+            return
+        else:
+            group_id = groups_csv[group_query]
+
+        match date_query:
+            case "завтра":
+                query_date = date.today() + timedelta(days=1)
+            case "понедельник" | "пн" | "пон":
+                query_date = date.today() - timedelta(days=date.today().weekday())
+            case "вторник" | "вт" | "втор":
+                query_date = date.today() - timedelta(days=date.today().weekday() - 1)
+            case "среда" | "ср" | "сред":
+                query_date = date.today() - timedelta(days=date.today().weekday() - 2)
+            case "четверг" | "чт" | "чет":
+                query_date = date.today() - timedelta(days=date.today().weekday() - 3)
+            case "пятница" | "пт" | "пят":
+                query_date = date.today() - timedelta(days=date.today().weekday() - 4)
+            case "суббота" | "сб" | "суб":
+                query_date = date.today() - timedelta(days=date.today().weekday() - 5)
+            case "воскресенье" | "вс" | "вос" | "воск":
+                await message.answer("😳 В воскресенье пар нет...")
+                return
+            case "" | "сегодня":
+                query_date = date.today()
+            case _:
+                raise Exception("Unhandled 2nd token")
+
+        payload = {
+            "groupId": group_id,
+            "date": str(query_date),
+            "publicationId": "47eff233-d796-4b9d-8099-7abf72277af9",
+        }
+
+        response = json.loads(
+            requests.post(schedule_url, json=payload, headers=req_headers).text
+        )
+
+        msg = lessons_string(response, query_date)
+        await safe_message(message, msg)
 
 
 async def handle_fio(message: Message, tokens: list[str]) -> None:
-    teacher_query = tokens[1].lower().capitalize()
+    teacher_query = tokens[1].capitalize()
     if teacher_query == "":
         await message.answer(
             "Как узнать ФИО преподавателя:\n\n<i>фио  (фамилия)</i>\n\n<b>Например:</b> фио Димитриев"
@@ -109,7 +137,9 @@ async def handle_fio(message: Message, tokens: list[str]) -> None:
     ]
 
     if teachers == []:
-        await message.answer("⚠️ <b>Такого преподавателя нет...</b>\n\n<i>Если нужный учитель не был найден, пишите @madeinheaven91</i>")
+        await message.answer(
+            "⚠️ <b>Такого преподавателя нет...</b>\n\n<i>Если нужный учитель не был найден, пишите @madeinheaven91</i>"
+        )
         return
 
     res = "👨‍🏫 <b>Найдены учителя</b>:\n"

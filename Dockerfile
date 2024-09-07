@@ -8,4 +8,4 @@ RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 EXPOSE 3003
 COPY . .
-CMD BOT_TOKEN=(INSERT BOT TOKEN) python3 main.py
+CMD python3 main.py
