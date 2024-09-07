@@ -4,9 +4,11 @@
 
 ### Установка
 
-в переменную окружения BOT_TOKEN ввести токен бота
+заполнить .env файл по примеру .env.example
 
-сделать окружение
+python -m venv venv
+
+source venv/bin/activate
 
 pip install -r requirements.txt
 

@@ -19,3 +19,10 @@ async def db_commit_close(conn, cur):
     conn.commit()
     cur.close()
     conn.close()
+
+async def cur_fetchone(request: str):
+    conn, cur = await db_connect()
+    cur.execute(request)
+    res = cur.fetchone()
+    await db_commit_close(conn, cur)
+    return res

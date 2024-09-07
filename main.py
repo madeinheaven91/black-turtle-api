@@ -1,6 +1,7 @@
 import asyncio
 import locale
 import logging
+import re
 import sys
 from os import getenv
 
@@ -14,17 +15,17 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message
 from dotenv import load_dotenv
 
-from db import db_commit_close, db_connect
-from handlers import (
+from data import *
+from src.db import db_commit_close, db_connect
+from src.handlers import (
     handle_bell,
-    handle_errors,
+    handle_exception,
     handle_fio,
     handle_groups,
     handle_lessons,
 )
-from message_strings import help_str
-from utils import *
-from utils import log_request
+from src.message_strings import help_msg
+from src.utils import log_request, safe_message
 
 dp = Dispatcher()
 router = Router(name=__name__)
@@ -33,24 +34,23 @@ router = Router(name=__name__)
 @router.message(F.text)
 async def msg_handler(message: Message) -> None:
     ## Initialize tokens
-    tokens = message.text.split(" ")
+    tokens = re.sub(' +', ' ', message.text.lower().strip()).split(" ")
     while len(tokens) < 5:
         tokens.append("")
-    tokens = list(map(lambda x: x.lower(), tokens))
 
     match tokens[0]:
         case "пары":
             log_request(message)
-            await handle_errors(handle_lessons, message, tokens)
+            await handle_exception(handle_lessons, message, tokens)
         case "фио":
             log_request(message)
-            await handle_errors(handle_fio, message, tokens)
+            await handle_exception(handle_fio, message, tokens)
         case "звонки":
             log_request(message)
-            await handle_errors(handle_bell, message, tokens)
+            await handle_exception(handle_bell, message, tokens)
         case "группы":
             log_request(message)
-            await handle_errors(handle_groups, message, tokens)
+            await handle_exception(handle_groups, message, tokens)
 
 
 @dp.message(Command("kill"))
@@ -91,7 +91,7 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
 
 
 @dp.message(SelectGroup.group)
-async def process_group(message: Message, state: FSMContext) -> None:
+async def process_group_state(message: Message, state: FSMContext) -> None:
     log_request(message)
     await state.update_data(group=message.text)
 
@@ -113,6 +113,7 @@ async def process_group(message: Message, state: FSMContext) -> None:
         (group_id, message.chat.id),
     )
     await db_commit_close(conn, cur)
+
     await safe_message(
         message,
         """Понял! Чтобы узнать пары своей группы на сегодня, пропишите "пары".""",
@@ -123,7 +124,7 @@ async def process_group(message: Message, state: FSMContext) -> None:
 @dp.message(Command("help"))
 async def cmd_help(message: Message) -> None:
     log_request(message)
-    await safe_message(message, help_str)
+    await safe_message(message, help_msg)
 
 
 ################

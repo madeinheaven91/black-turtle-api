@@ -4,26 +4,14 @@ from datetime import datetime
 
 from aiogram.types import Message
 
+from src.exceptions import UnknownGroupError
+
 schedule_url = "https://schedule.mstimetables.ru/api/publications/group/lessons"
 req_headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/112.0",
     "Content-Type": "application/json",
     "Accept": "*/*",
 }
-
-groups_csv = {}
-with open("data/groups.csv", "r") as csv_file:
-    csv_reader = csv.DictReader(csv_file)
-    for row in csv_reader:
-        group_name = row["group_name"]
-        group_id = row["group_id"]
-        groups_csv[group_name] = group_id
-
-with open("data/teachers.csv", "r") as csv_file:
-    csv_reader = csv.reader(csv_file)
-    next(csv_reader)
-    teachers_csv = list(csv_reader)
-teachers_csv = teachers_csv
 
 
 @dataclass()
@@ -121,26 +109,23 @@ def collapse(lessons: list[Lesson]) -> list[Lesson]:
     return res
 
 
-def log_request(message: Message):
-    print(
-        f"{datetime.now().strftime('| %d.%m.%y | %H:%M:%S |')} {str(message.from_user.full_name)} ({str(message.from_user.username)}): {str(message.text)}"
-    )
-
-
-async def safe_message(message: Message, msg: str) -> None:
-    try:
-        await message.answer(msg)
-    except Exception as e:
-        print(e)
-
-
 def lessons_string(response, query_date: datetime.date):
     lessons = response.get("lessons")
 
     if len(lessons) == 0:
-        res = "<b>Пар нет! 🥳🥳🥳</b>\nМожно отдыхать..."
+        res = (
+            "<b>"
+            + response.get("group").get("name")
+            + "\n"
+            + str(query_date.strftime("%A"))
+            + "\n"
+            + str(query_date.strftime("%d.%m.%y"))
+            + "</b>\n\n"
+            + "—————| Выходной |—————\n\n"
+            + "<b>Пар нет! 🥳🥳🥳</b>\nМожно отдыхать..."
+        )
         return res
-    
+
     temp = []
     for lesson in lessons:
         if lesson.get("weekday") == query_date.weekday() + 1:
@@ -161,10 +146,23 @@ def lessons_string(response, query_date: datetime.date):
         + "</b>\n\n"
     )
     for lesson in lessons_today:
-        res += "———————| " + str(lesson.index) + " урок" + " |———————"
-        res += "\n\n"
+        res += "———————| " + str(lesson.index) + " урок" + " |———————\n\n"
         res += "⏳ " + lesson.time_str + "\n"
         res += "📖 <b>" + lesson.name + "</b>\n"
         res += "🎓 " + lesson.teacher + "\n"
         res += "🔑 " + lesson.cabinet + "\n\n"
+
     return res
+
+
+def log_request(message: Message):
+    print(
+        f"{datetime.now().strftime('| %d.%m.%y | %H:%M:%S |')} {str(message.from_user.full_name)} ({str(message.from_user.username)}): {str(message.text)}"
+    )
+
+
+async def safe_message(message: Message, msg: str) -> None:
+    try:
+        await message.answer(msg)
+    except Exception as e:
+        print(e)
