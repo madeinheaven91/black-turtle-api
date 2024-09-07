@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 
 from src.exceptions import DayError
 
@@ -32,6 +32,10 @@ def process_date_token(token: str) -> tuple[date, bool]:
         case "воскресенье" | "вс" | "вос" | "воск":
             query_date = date.today() - timedelta(days=date.today().weekday() - 6)
         case _:
-            raise DayError("Couldn't process day token (" + token + ")")
+            try:
+                query_date = datetime.strptime(token, "%d.%m.%y").date()
+                ignore_week = True
+            except:
+                raise DayError("Couldn't process day token (" + token + ")")
 
     return query_date, ignore_week
