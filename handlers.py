@@ -19,9 +19,11 @@ from utils import *
 async def handle_lessons(message: Message, tokens: list[str]) -> None:
     token_fst = tokens[1]
     token_snd = tokens[2]
+    token_trd = tokens[3]
 
     if token_fst not in groups_csv:
         date_query = token_fst
+        date_modifier_query = token_snd
         conn, cur = await db_connect()
 
         cur.execute(
@@ -60,6 +62,12 @@ async def handle_lessons(message: Message, tokens: list[str]) -> None:
             case _:
                 raise Exception("Unhandled token")
 
+        match date_modifier_query:
+            case "след" | "следующий" | "следующая":
+                query_date += timedelta(days=7)
+            case "прош" | "пр" | "прошлый" | "прошлая":
+                query_date -= timedelta(days=7)
+
         payload = {
             "groupId": group_id,
             "date": str(query_date),
@@ -76,6 +84,7 @@ async def handle_lessons(message: Message, tokens: list[str]) -> None:
     else:
         group_query = token_fst
         date_query = token_snd
+        date_modifier_query = token_trd
 
         if group_query not in groups_csv:
             await safe_message(message, "⚠️ Такой группы нет")
@@ -105,6 +114,12 @@ async def handle_lessons(message: Message, tokens: list[str]) -> None:
                 query_date = date.today()
             case _:
                 raise Exception("Unhandled 2nd token")
+
+        match date_modifier_query:
+            case "след" | "следующий" | "следующая":
+                query_date += timedelta(days=7)
+            case "прош" | "пр" | "прошлый" | "прошлая":
+                query_date -= timedelta(days=7)
 
         payload = {
             "groupId": group_id,

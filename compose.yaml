@@ -16,7 +16,7 @@ services:
     container_name: pgadmin_bt
     image: dpage/pgadmin4
     environment:
-      PGADMIN_DEFAULT_EMAIL: root
+      PGADMIN_DEFAULT_EMAIL: root@gmail.com
       PGADMIN_DEFAULT_PASSWORD: root
     ports:
       - "5050:80"

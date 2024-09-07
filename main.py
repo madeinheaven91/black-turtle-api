@@ -34,7 +34,7 @@ router = Router(name=__name__)
 async def msg_handler(message: Message) -> None:
     ## Initialize tokens
     tokens = message.text.split(" ")
-    while len(tokens) < 3:
+    while len(tokens) < 5:
         tokens.append("")
     tokens = list(map(lambda x: x.lower(), tokens))
 

@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM python:3.13-rc-alpine
+FROM python:3.12-rc-alpine
 WORKDIR /code
 COPY requirements.txt requirements.txt
 RUN python -m venv venv
