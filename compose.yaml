@@ -1,9 +1,4 @@
 services:
-  bot:
-    container_name: BlackTurtleBot
-    build: .
-    ports:
-      - "3003:3003"
   db:
     image: postgres
     container_name: BlackTurtleDB
