@@ -1,17 +1,44 @@
 services:
-  db:
-    image: postgres
-    container_name: BlackTurtleDB
+  bot:
+    container_name: bt-bot
+    build:
+      context: .
+      dockerfile: ./Dockerfile
     environment:
-      PGPORT: 3004
-      POSTGRES_PASSWORD: root
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=${POSTGRES_PORT}
+    depends_on:
+      - postgres
+      - pgadmin
+    tty: true
+
+  postgres:
+    container_name: bt-pg
+    image: postgres
+    hostname: localhost
     ports:
       - "3004:3004"
-  pgadmin:
-    container_name: pgadmin_bt
-    image: dpage/pgadmin4
     environment:
-      PGADMIN_DEFAULT_EMAIL: root@gmail.com
-      PGADMIN_DEFAULT_PASSWORD: root
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGPORT: ${POSTGRES_PORT}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  pgadmin:
+    container_name: bt-pgadmin
+    image: dpage/pgadmin4
+    depends_on:
+      - postgres
     ports:
       - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      PGADMIN_LISTEN_PORT: 80
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
