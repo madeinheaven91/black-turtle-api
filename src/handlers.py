@@ -28,7 +28,6 @@ from src.utils import *
 # (3) неделя / ""
 
 
-#
 async def handle_lessons(message: Message, tokens: list[str]) -> None:
     # Token identification
     if tokens[1] not in groups_csv:
@@ -42,16 +41,9 @@ async def handle_lessons(message: Message, tokens: list[str]) -> None:
     if tokens[1] != day_token:  ### If the first token is group number
         group_id = await process_group_token(group_token)
         day_processed = process_date_token(day_token)
-        query_date = process_week_token(
-            week_token, day_processed[0], day_processed[1]
-        )
+        query_date = process_week_token(week_token, day_processed[0], day_processed[1])
 
-
-        payload = {
-            "groupId": group_id,
-            "date": str(query_date),
-            "publicationId": "47eff233-d796-4b9d-8099-7abf72277af9",
-        }
+        payload = gen_payload(group_id, query_date);
 
         response = json.loads(
             requests.post(schedule_url, json=payload, headers=req_headers).text
@@ -82,11 +74,7 @@ async def handle_lessons(message: Message, tokens: list[str]) -> None:
         group_id = fetch[0]
         await db_commit_close(conn, cur)
 
-        payload = {
-            "groupId": group_id,
-            "date": str(query_date),
-            "publicationId": "47eff233-d796-4b9d-8099-7abf72277af9",
-        }
+        payload = gen_payload(group_id, query_date);
 
         response = json.loads(
             requests.post(schedule_url, json=payload, headers=req_headers).text

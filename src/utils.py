@@ -166,3 +166,10 @@ async def safe_message(message: Message, msg: str) -> None:
         await message.answer(msg)
     except Exception as e:
         print(e)
+
+def gen_payload(group_id: str, query_date: datetime.date):
+    return {
+        "groupId": group_id,
+        "date": str(query_date),
+        "publicationId": "45fc8ddd-35e2-4d8e-9da1-a081a8edc11d",
+    }

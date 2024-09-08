@@ -105,6 +105,8 @@ async def process_group_state(message: Message, state: FSMContext) -> None:
         )
         return
 
+    print(groups_csv)
+    print(group_id)
     conn, cur = await db_connect()
     cur.execute(
         """UPDATE Chat
