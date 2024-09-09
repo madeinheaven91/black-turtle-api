@@ -163,13 +163,10 @@ async def handle_exception(handler, message: Message, tokens: list[str]) -> None
             case _:
                 msg = exception_msg
                 add_prefix = False
-        error(e)
         if add_prefix != False:
             msg = "⚠️ " + msg
-        try:
-            message.answer(msg, parse_mode=ParseMode.HTML)
-        except Exception as e:
-            error(e)
+        await message.reply(msg, parse_mode=ParseMode.HTML)
+        error(e)
 
 
 async def handle_help(message: Message, tokens: list[str]) -> None:
