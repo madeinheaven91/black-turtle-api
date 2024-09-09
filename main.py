@@ -51,7 +51,6 @@ async def main() -> None:
 
     dp.include_router(router)
     await dp.start_polling(bot)
-    print("polinh")
 
 
 if __name__ == "__main__":

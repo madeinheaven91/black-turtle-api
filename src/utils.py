@@ -173,15 +173,39 @@ async def log_request(message: Message):
     print(
         f"{datetime.now().strftime('| %d.%m.%y | %H:%M:%S |')} {str(message.from_user.full_name)} ({str(message.from_user.username)}): {str(message.text)}"
     )
+    name = (
+        message.from_user.username
+        if message.chat.type == "private"
+        else message.chat.title
+    )
+    is_group = message.chat.type == "group" or message.chat.type == "supergroup"
 
     conn, cur = await db_connect()
-    name = message.from_user.username if message.chat.type == "private" else message.chat.title
+
     cur.execute(
-        """UPDATE Chat
-    SET name=%s
-    WHERE id=%s""",
-        (name, message.chat.id),
+        """
+    SELECT * from Chat WHERE id=%s
+    """,
+        (message.chat.id,)
     )
+    exists = cur.fetchone()
+
+    if exists is None:
+        cur.execute(
+            """
+                    INSERT INTO Chat (id, name, is_group)
+                    VALUES (%s, %s, %s) 
+                    ON CONFLICT (id) DO NOTHING
+                    """,
+            (message.chat.id, name, is_group),
+        )
+    else:
+        cur.execute(
+            """UPDATE Chat
+        SET name=%s
+        WHERE id=%s""",
+            (name, message.chat.id),
+        )
     await db_commit_close(conn, cur)
 
 
