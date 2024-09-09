@@ -31,11 +31,7 @@ from src.utils import log_request, safe_message
 
 async def main() -> None:
     load_dotenv()
-    TOKEN = getenv("BOT_TOKEN")
-
-    if TOKEN is None:
-        print("Token not found!")
-        return
+    
 
     conn, cur = await db_connect()
 
@@ -51,12 +47,7 @@ async def main() -> None:
     await db_commit_close(conn, cur)
 
     locale.setlocale(locale.LC_TIME, "ru_RU.UTF-8")
-    bot = Bot(
-        token=TOKEN,
-        default=DefaultBotProperties(
-            parse_mode=ParseMode.HTML,
-        ),
-    )
+    
 
     dp.include_router(router)
     await dp.start_polling(bot)

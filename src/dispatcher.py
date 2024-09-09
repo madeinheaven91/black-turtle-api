@@ -1,5 +1,6 @@
 import logging
 import re
+from os import getenv
 
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.client.default import DefaultBotProperties
@@ -22,6 +23,21 @@ from src.utils import log_request, safe_message
 dp = Dispatcher()
 router = Router(name=__name__)
 
+
+load_dotenv()
+TOKEN = getenv("BOT_TOKEN")
+
+if TOKEN is None:
+    print("Token not found!")
+
+
+bot = Bot(
+    token=TOKEN,
+    default=DefaultBotProperties(
+        parse_mode=ParseMode.HTML,
+    ),
+)
+
 ignore_messages = False
 
 ################
@@ -29,6 +45,7 @@ ignore_messages = False
 ### COMMANDS ###
 ###          ###
 ################
+
 
 @router.message(F.text)
 async def msg_handler(message: Message) -> None:
@@ -55,14 +72,6 @@ async def msg_handler(message: Message) -> None:
         case "группы":
             await log_request(message)
             await handle_exception(handle_groups, message, tokens)
-
-
-@dp.message(Command("kill"))
-async def cmd_kill(message: Message) -> None:
-    await log_request(message)
-    if message.from_user.id == 2087648271:
-        await safe_message(message, "Я умер")
-        await dp.stop_polling()
 
 
 @dp.message(Command("start"))
@@ -167,3 +176,71 @@ async def process_callback_exit(callback: CallbackQuery, state: FSMContext) -> N
     )
 
 
+######################
+###                ###
+### ADMIN COMMANDS ###
+###                ###
+######################
+
+
+@dp.message(Command("kill"))
+async def cmd_kill(message: Message) -> None:
+    await log_request(message)
+    if message.from_user.id == 2087648271:
+        await safe_message(message, "Я умер")
+        await dp.stop_polling()
+
+
+@dp.message(Command("send"))
+async def cmd_send(message: Message) -> None:
+    await log_request(message)
+    if message.from_user.id == 2087648271:
+        text = message.text;
+        while len(text.split(" ")) < 3:
+            text += " ."
+        address_id = text.split(" ")[1]
+        msg = text.split(" ", 2)[2]
+        try:
+            await bot.send_message(address_id, msg, parse_mode=ParseMode.HTML)
+            await message.reply("Отправлено")
+        except Exception as e:
+            await message.reply("Не получилось отправить")
+    else:
+        ()
+
+@dp.message(Command("send_all"))
+async def cmd_send_all(message: Message) -> None:
+    await log_request(message)
+    if message.from_user.id == 2087648271:
+        text = message.text;
+        while len(text.split(" ")) < 2:
+            text += " ."
+        msg = text.split(" ", 1)[1]
+
+        conn, cur = await db_connect()
+        cur.execute("SELECT id FROM Chat")
+        chats = cur.fetchall()
+        ids = []
+        for chat in chats:
+            ids.append(chat[0])
+
+        await db_commit_close(conn, cur)
+
+        successful = 0;
+        failed = 0;
+        for id in ids:
+            try:
+                await bot.send_message(id, msg, parse_mode=ParseMode.HTML)
+                successful += 1;
+            except:
+                failed += 1;
+
+
+        await message.reply("Отправлено (всего: " + str(len(ids)) + ", успешно: " + str(successful) + ", неудачно: " + str(failed) + ")")
+        # try:
+        #     await bot.send_message(address_id, msg, parse_mode=ParseMode.HTML)
+        #     await message.reply("Отправлено")
+        # except Exception as e:
+        #     await message.reply("Не получилось отправить")
+    else:
+        ()
