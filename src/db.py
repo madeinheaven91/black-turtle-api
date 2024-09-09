@@ -37,7 +37,7 @@ async def db_init() -> None:
         """CREATE TABLE IF NOT EXISTS Chat (
     id BIGINT PRIMARY KEY UNIQUE,
     type VARCHAR(16),
-    is_banned BOOLEAN DEFAULT TRUE,
+    is_banned BOOLEAN DEFAULT FALSE,
     study_entity_id VARCHAR(255) NULL
 );"""
     )
