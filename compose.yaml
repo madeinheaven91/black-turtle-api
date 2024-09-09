@@ -25,6 +25,7 @@ services:
       PGPORT: ${POSTGRES_PORT}
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - transfer:/var/transfer:rw
     restart: unless-stopped
 
   pgadmin:
@@ -42,3 +43,4 @@ services:
 
 volumes:
   postgres-data:
+  transfer:
