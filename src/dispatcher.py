@@ -96,25 +96,24 @@ async def cmd_start(message: Message) -> None:
             (chat_id, chat_type)
         )
         if chat_type == "private":
-            user_id = message.from_user.id
             name = message.from_user.full_name
             username = message.from_user.username
             cur.execute(
                 """
-                    INSERT INTO TelegramUser (id, name, username, chat_id)
-                    VALUES (%s, %s, %s, %s) 
+                    INSERT INTO TelegramUser (id, name, username)
+                    VALUES (%s, %s, %s) 
                     ON CONFLICT (id) DO NOTHING
                     """,
-                (user_id, name, username, chat_id)
+                (chat_id, name, username)
             )
         else:
             title = message.chat.title
             cur.execute(
                 """
-                    INSERT INTO TelegramGroup (title, chat_id)
+                    INSERT INTO TelegramGroup (id, title)
                     VALUES (%s, %s) 
                     """,
-                (title, chat_id)
+                (chat_id, title)
             )
     await db_commit_close(conn, cur)
 
@@ -191,6 +190,10 @@ async def registration(message: Message, state: FSMContext) -> None:
 
     ### DELETE AFTER SOME TIME
     ### NEEDED FOR LEGACY USERS
+    conn, cur = await db_connect()
+    cur.execute("""SELECT id from Chat WHERE id=%s""", (message.chat.id,))
+    exists = cur.fetchone()
+
     if exists is None:
         chat_id = message.chat.id
         chat_type = message.chat.type
@@ -203,27 +206,28 @@ async def registration(message: Message, state: FSMContext) -> None:
             (chat_id, chat_type)
         )
         if chat_type == "private":
-            user_id = message.from_user.id
             name = message.from_user.full_name
             username = message.from_user.username
             cur.execute(
                 """
-                    INSERT INTO TelegramUser (id, name, username, chat_id)
-                    VALUES (%s, %s, %s, %s) 
+                    INSERT INTO TelegramUser (id, name, username)
+                    VALUES (%s, %s, %s) 
                     ON CONFLICT (id) DO NOTHING
                     """,
-                (user_id, name, username, chat_id)
+                (chat_id, name, username)
             )
         else:
             title = message.chat.title
             cur.execute(
                 """
-                    INSERT INTO TelegramGroup (title, chat_id)
+                    INSERT INTO TelegramGroup (id, title)
                     VALUES (%s, %s) 
                     """,
-                (title, chat_id)
+                (chat_id, title)
             )
     await db_commit_close(conn, cur)
+
+
 
 
 

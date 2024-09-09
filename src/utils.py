@@ -189,7 +189,7 @@ async def log_request(message: Message):
             """
                     UPDATE TelegramGroup 
                     SET title=%s
-                    WHERE chat_id=%s
+                    WHERE id=%s
                     """,
             (name,message.chat.id),
         )
