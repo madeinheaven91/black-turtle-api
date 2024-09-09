@@ -86,16 +86,36 @@ async def cmd_start(message: Message) -> None:
 
     if exists is None:
         chat_id = message.chat.id
-        name = message.from_user.username if message.from_user.id else message.chat.title
-        is_group = message.chat.type == "group" or message.chat.type == "supergroup"
+        chat_type = message.chat.type
         cur.execute(
             """
-                INSERT INTO Chat (id, name, is_group)
-                VALUES (%s, %s, %s) 
+                INSERT INTO Chat (id, type)
+                VALUES (%s, %s) 
                 ON CONFLICT (id) DO NOTHING
                 """,
-            (chat_id, name, is_group),
+            (chat_id, chat_type)
         )
+        if chat_type == "private":
+            user_id = message.from_user.id
+            name = message.from_user.full_name
+            username = message.from_user.username
+            cur.execute(
+                """
+                    INSERT INTO TelegramUser (id, name, username, chat_id)
+                    VALUES (%s, %s, %s, %s) 
+                    ON CONFLICT (id) DO NOTHING
+                    """,
+                (user_id, name, username, chat_id)
+            )
+        else:
+            title = message.chat.title
+            cur.execute(
+                """
+                    INSERT INTO TelegramGroup (title, chat_id)
+                    VALUES (%s, %s) 
+                    """,
+                (title, chat_id)
+            )
     await db_commit_close(conn, cur)
 
     try:
@@ -142,7 +162,7 @@ async def select_group(message: Message, state: FSMContext) -> None:
     conn, cur = await db_connect()
     cur.execute(
         """UPDATE Chat
-    SET selected_group_id=%s
+    SET study_entity_id=%s
     WHERE id=%s""",
         (group_id, message.chat.id),
     )

@@ -170,42 +170,41 @@ def lessons_string(response, query_date: datetime.date):
 
 
 async def log_request(message: Message):
-    print(
-        f"{datetime.now().strftime('| %d.%m.%y | %H:%M:%S |')} {str(message.from_user.full_name)} ({str(message.from_user.username)}): {str(message.text)}"
-    )
-    name = (
-        message.from_user.username
-        if message.chat.type == "private"
-        else message.chat.title
-    )
-    is_group = message.chat.type == "group" or message.chat.type == "supergroup"
+    is_group = message.chat.type != "private"
+    name = message.chat.title if is_group else message.from_user.full_name
+
+    if is_group:
+        print(
+            f"{datetime.now().strftime('| %d.%m.%y | %H:%M:%S |')} {name} ({str(message.from_user.username)}): {str(message.text)}"
+        )
+    else:
+        print(
+            f"{datetime.now().strftime('| %d.%m.%y | %H:%M:%S |')} {name} ({str(message.from_user.username)}): {str(message.text)}"
+        )
 
     conn, cur = await db_connect()
 
-    cur.execute(
-        """
-    SELECT * from Chat WHERE id=%s
-    """,
-        (message.chat.id,)
-    )
-    exists = cur.fetchone()
-
-    if exists is None:
+    if is_group:
         cur.execute(
             """
-                    INSERT INTO Chat (id, name, is_group)
-                    VALUES (%s, %s, %s) 
-                    ON CONFLICT (id) DO NOTHING
+                    UPDATE TelegramGroup 
+                    SET title=%s
+                    WHERE chat_id=%s
                     """,
-            (message.chat.id, name, is_group),
+            (name,message.chat.id),
         )
     else:
         cur.execute(
-            """UPDATE Chat
-        SET name=%s
-        WHERE id=%s""",
-            (name, message.chat.id),
+            """
+                    UPDATE TelegramUser 
+                    SET name=%s
+                    WHERE id=%s
+                    """,
+            (name,message.from_user.id),
         )
+
+
+
     await db_commit_close(conn, cur)
 
 

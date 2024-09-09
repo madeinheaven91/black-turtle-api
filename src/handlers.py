@@ -59,7 +59,7 @@ async def handle_lessons(message: Message, tokens: list[str]) -> None:
 
         conn, cur = await db_connect()
         cur.execute(
-            """SELECT chat.selected_group_id FROM Chat where id=%s""",
+            """SELECT chat.study_entity_id FROM Chat where id=%s""",
             (message.chat.id,),
         )
 
