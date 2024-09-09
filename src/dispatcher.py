@@ -86,7 +86,7 @@ async def cmd_start(message: Message) -> None:
 
     if exists is None:
         chat_id = message.chat.id
-        name = message.chat.title if message.chat.title else message.chat.full_name
+        name = message.from_user.username if message.from_user.id else message.chat.title
         is_group = message.chat.type == "group" or message.chat.type == "supergroup"
         cur.execute(
             """

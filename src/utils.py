@@ -175,11 +175,12 @@ async def log_request(message: Message):
     )
 
     conn, cur = await db_connect()
+    name = message.from_user.username if message.chat.type == "private" else message.chat.title
     cur.execute(
         """UPDATE Chat
     SET name=%s
     WHERE id=%s""",
-        (message.chat.full_name, message.chat.id),
+        (name, message.chat.id),
     )
     await db_commit_close(conn, cur)
 
