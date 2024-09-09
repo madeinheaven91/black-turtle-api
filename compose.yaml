@@ -41,8 +41,10 @@ services:
       PGADMIN_LISTEN_PORT: 80
     restart: unless-stopped
     volumes:
-      - transfer:/var/lib/pgadmin:rw
+      - pgadmin-data:/var/lib/pgadmin
+      - transfer:/var/lib/pgadmin/storage:rw
 
 volumes:
   postgres-data:
+  pgadmin-data:
   transfer:
