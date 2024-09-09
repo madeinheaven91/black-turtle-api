@@ -6,13 +6,9 @@ from aiogram.types import Message
 
 from data import groups_csv
 from src.db import db_commit_close, db_connect
-from src.exceptions import (
-    BellTypeError,
-    DayError,
-    GroupNotSelectedError,
-    UnknownTeacherError,
-    WeekError,
-)
+from src.exceptions import (BellTypeError, DayError, GroupNotSelectedError,
+                            UnknownTeacherError, WeekError)
+from src.keyboards import help_kb
 from src.message_strings import *
 from src.tokens.day import process_date_token
 from src.tokens.group import process_group_token
@@ -43,7 +39,7 @@ async def handle_lessons(message: Message, tokens: list[str]) -> None:
         day_processed = process_date_token(day_token)
         query_date = process_week_token(week_token, day_processed[0], day_processed[1])
 
-        payload = gen_payload(group_id, query_date);
+        payload = gen_payload(group_id, query_date)
 
         response = json.loads(
             requests.post(schedule_url, json=payload, headers=req_headers).text
@@ -67,14 +63,16 @@ async def handle_lessons(message: Message, tokens: list[str]) -> None:
         )
 
         fetch = cur.fetchone()
-        if fetch is None:
-            raise GroupNotSelectedError(
-                "Group not selected in chat (" + message.chat.id + ")"
-            )
         group_id = fetch[0]
+
+        if group_id is None:
+            raise GroupNotSelectedError(
+                "Group not selected in chat (" + str(message.chat.id) + ")"
+            )
+
         await db_commit_close(conn, cur)
 
-        payload = gen_payload(group_id, query_date);
+        payload = gen_payload(group_id, query_date)
 
         response = json.loads(
             requests.post(schedule_url, json=payload, headers=req_headers).text
@@ -92,7 +90,7 @@ async def handle_fio(message: Message, tokens: list[str]) -> None:
     teacher_token = tokens[1].capitalize()
 
     if teacher_token == "":
-        await safe_message(message, teacher_help)
+        await safe_message(message, teacher_help_msg)
         return
 
     teachers = process_teacher_token(teacher_token)
@@ -168,3 +166,28 @@ async def handle_exception(handler, message: Message, tokens: list[str]) -> None
         if add_prefix != False:
             msg = "⚠️ " + msg
         await safe_message(message, msg)
+
+
+async def handle_help(message: Message, tokens: list[str]) -> None:
+    help_specifier_token = tokens[1]
+    match help_specifier_token:
+        case "":
+            try:
+                await message.answer(help_msg, reply_markup=help_kb)
+            except Exception as e:
+                error(e)
+        case "пары":
+            try:
+                await message.answer(lessons_help_msg, reply_markup=help_kb)
+            except Exception as e:
+                error(e)
+        case "фио":
+            try:
+                await message.answer(teacher_help_msg, reply_markup=help_kb)
+            except Exception as e:
+                error(e)
+        case "звонки":
+            try:
+                await message.answer(bell_help_msg, reply_markup=help_kb)
+            except Exception as e:
+                error(e)

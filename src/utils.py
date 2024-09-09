@@ -4,6 +4,7 @@ from datetime import datetime
 
 from aiogram.types import Message
 
+from src.db import db_connect, db_commit_close
 from src.exceptions import UnknownGroupError
 
 schedule_url = "https://schedule.mstimetables.ru/api/publications/group/lessons"
@@ -155,10 +156,19 @@ def lessons_string(response, query_date: datetime.date):
     return res
 
 
-def log_request(message: Message):
+async def log_request(message: Message):
     print(
         f"{datetime.now().strftime('| %d.%m.%y | %H:%M:%S |')} {str(message.from_user.full_name)} ({str(message.from_user.username)}): {str(message.text)}"
     )
+
+    conn, cur = await db_connect();
+    cur.execute(
+        """UPDATE Chat
+    SET name=%s
+    WHERE id=%s""",
+        (message.chat.full_name, message.chat.id),
+    )
+    await db_commit_close(conn, cur)
 
 
 async def safe_message(message: Message, msg: str) -> None:

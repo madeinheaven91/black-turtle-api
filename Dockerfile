@@ -4,8 +4,10 @@ FROM python:3.12-rc-alpine
 # Locale setup
 RUN apk add musl-locales
 RUN apk add lang
+RUN apk add --no-cache tzdata
 ENV MUSL_LOCPATH=/usr/share/i18n/locales/musl
 ENV LC_TIME=ru_RU.UTF-8
+ENV TZ=Europe/Moscow
 
 # Project setup
 WORKDIR /code
