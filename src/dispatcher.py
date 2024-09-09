@@ -222,7 +222,7 @@ async def cmd_send_all(message: Message) -> None:
             text += " ."
         msg = text.split(" ", 1)[1]
 
-        if text.split(" ")[1] == ".":
+        if msg == ".":
             await message.reply("Сообщение пусто!")
             return
         conn, cur = await db_connect()

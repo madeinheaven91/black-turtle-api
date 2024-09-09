@@ -4,7 +4,7 @@ from datetime import datetime
 
 from aiogram.types import Message
 
-from src.db import db_connect, db_commit_close
+from src.db import db_commit_close, db_connect
 from src.exceptions import UnknownGroupError
 
 schedule_url = "https://schedule.mstimetables.ru/api/publications/group/lessons"
@@ -112,8 +112,7 @@ def collapse(lessons: list[Lesson]) -> list[Lesson]:
 
 def lessons_string(response, query_date: datetime.date):
     lessons = response.get("lessons")
-
-    if len(lessons) == 0:
+    if lessons is None:
         res = (
             "<b>"
             + response.get("group").get("name")
@@ -122,8 +121,8 @@ def lessons_string(response, query_date: datetime.date):
             + "\n"
             + str(query_date.strftime("%d.%m.%y"))
             + "</b>\n\n"
-            + "—————| Выходной |—————\n\n"
-            + "<b>Пар нет! 🥳🥳🥳</b>\nМожно отдыхать..."
+            + "————| Нет расписания |————\n\n"
+            + "<b>На этот день распиания пока нет...</b>"
         )
         return res
 
@@ -131,6 +130,20 @@ def lessons_string(response, query_date: datetime.date):
     for lesson in lessons:
         if lesson.get("weekday") == query_date.weekday() + 1:
             temp.append(json_to_lesson(lesson))
+
+    if len(temp) == 0:
+        res = (
+            "<b>"
+            + response.get("group").get("name")
+            + "\n"
+            + str(query_date.strftime("%A"))
+            + "\n"
+            + str(query_date.strftime("%d.%m.%y"))
+            + "</b>\n\n"
+            + "———| Нет расписания |———\n\n"
+            + "<b>На этот день распиания пока нет...</b>"
+        )
+        return res
     temp = sorted(temp, key=lambda x: x.start_time)
     lessons_today = collapse(temp)
 
@@ -147,7 +160,7 @@ def lessons_string(response, query_date: datetime.date):
         + "</b>\n\n"
     )
     for lesson in lessons_today:
-        res += "———————| " + str(lesson.index) + " урок" + " |———————\n\n"
+        res += "——————| " + str(lesson.index) + " урок" + " |——————\n\n"
         res += "⏳ " + lesson.time_str + "\n"
         res += "📖 <b>" + lesson.name + "</b>\n"
         res += "🎓 " + lesson.teacher + "\n"
@@ -161,7 +174,7 @@ async def log_request(message: Message):
         f"{datetime.now().strftime('| %d.%m.%y | %H:%M:%S |')} {str(message.from_user.full_name)} ({str(message.from_user.username)}): {str(message.text)}"
     )
 
-    conn, cur = await db_connect();
+    conn, cur = await db_connect()
     cur.execute(
         """UPDATE Chat
     SET name=%s
@@ -176,6 +189,7 @@ async def safe_message(message: Message, msg: str) -> None:
         await message.answer(msg)
     except Exception as e:
         print(e)
+
 
 def gen_payload(group_id: str, query_date: datetime.date):
     return {
