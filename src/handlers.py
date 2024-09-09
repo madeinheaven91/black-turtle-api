@@ -64,7 +64,7 @@ async def handle_lessons(message: Message, tokens: list[str]) -> None:
         )
 
         fetch = cur.fetchone()
-        group_id = fetch[0]
+        group_id = None if fetch is None else fetch[0]
 
         if group_id is None:
             raise GroupNotSelectedError(

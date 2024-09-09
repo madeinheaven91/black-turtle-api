@@ -185,6 +185,47 @@ async def registration(message: Message, state: FSMContext) -> None:
     await message.answer("❔ Введите номер своей группы")
     await state.set_state(Registration.select)
 
+    conn, cur = await db_connect()
+    cur.execute("""SELECT id from Chat WHERE id=%s""", (message.chat.id,))
+    exists = cur.fetchone()
+
+    ### DELETE AFTER SOME TIME
+    ### NEEDED FOR LEGACY USERS
+    if exists is None:
+        chat_id = message.chat.id
+        chat_type = message.chat.type
+        cur.execute(
+            """
+                INSERT INTO Chat (id, type)
+                VALUES (%s, %s) 
+                ON CONFLICT (id) DO NOTHING
+                """,
+            (chat_id, chat_type)
+        )
+        if chat_type == "private":
+            user_id = message.from_user.id
+            name = message.from_user.full_name
+            username = message.from_user.username
+            cur.execute(
+                """
+                    INSERT INTO TelegramUser (id, name, username, chat_id)
+                    VALUES (%s, %s, %s, %s) 
+                    ON CONFLICT (id) DO NOTHING
+                    """,
+                (user_id, name, username, chat_id)
+            )
+        else:
+            title = message.chat.title
+            cur.execute(
+                """
+                    INSERT INTO TelegramGroup (title, chat_id)
+                    VALUES (%s, %s) 
+                    """,
+                (title, chat_id)
+            )
+    await db_commit_close(conn, cur)
+
+
 
 @dp.callback_query(F.data == "registration_end")
 async def process_callback_exit(callback: CallbackQuery, state: FSMContext) -> None:
