@@ -100,7 +100,7 @@ async def cmd_start(message: Message) -> None:
 
     try:
         await message.answer(
-            "Привет! Для начала давай выберем группу, в которой ты учишься.",
+            "✋ Привет! Для начала давайте выберем группу, в которой вы учитесь.",
             reply_markup=greeting_kb,
         )
     except Exception as e:
@@ -110,7 +110,7 @@ async def cmd_start(message: Message) -> None:
 @dp.callback_query(F.data == "yes")
 async def registration_callback(callback: CallbackQuery, state: FSMContext) -> None:
     ignore_messages = False
-    await callback.message.edit_text("Введи номер своей группы")
+    await callback.message.edit_text("❔ Введите номер своей группы")
     await state.set_state(Registration.select)
     await callback.answer()
 
@@ -119,7 +119,7 @@ async def registration_callback(callback: CallbackQuery, state: FSMContext) -> N
 async def process_callback_no(callback: CallbackQuery) -> None:
     ignore_messages = False
     await callback.message.edit_text(
-        "Хорошо! Ты можешь зарегистрироваться в другой раз, прописав <b>регистрация</b>.\n\nЧтобы узнать, что я могу, пропиши <b>помощь</b>!",
+        "ℹ️ Хорошо! Вы можете зарегистрироваться в другой раз, прописав <b>регистрация</b>.\n\nЧтобы узнать, что я могу, пропишите <b>помощь</b>!",
         parse_mode=ParseMode.HTML,
     )
     await callback.answer()
@@ -134,7 +134,7 @@ async def select_group(message: Message, state: FSMContext) -> None:
         await message.answer(
             """⚠️ <b>Такой группы нет...</b>
 
-Отправь номер своей группы еще раз.""",
+Отправьте номер своей группы еще раз.""",
             reply_markup=registration_end_kb,
         )
         return
@@ -150,7 +150,7 @@ async def select_group(message: Message, state: FSMContext) -> None:
 
     try:
         await message.answer(
-            """Отлично, группа выбрана! Теперь вы можете смотреть пары своей группы!\n\nЧтобы узнать, что я могу, пропиши <b>помощь</b>!""",
+            """✅ Отлично, группа выбрана! Теперь вы можете смотреть пары своей группы!\n\nЧтобы узнать, что я могу, пропишите <b>помощь</b>!""",
             parse_mode=ParseMode.HTML,
             reply_markup=default_kb,
         )
@@ -162,7 +162,7 @@ async def select_group(message: Message, state: FSMContext) -> None:
 
 @dp.message(F.text.lower() == "регистрация")
 async def registration(message: Message, state: FSMContext) -> None:
-    await message.answer("Введи номер своей группы")
+    await message.answer("❔ Введите номер своей группы")
     await state.set_state(Registration.select)
 
 
@@ -171,7 +171,7 @@ async def process_callback_exit(callback: CallbackQuery, state: FSMContext) -> N
     ignore_messages = False
     await state.clear()
     await callback.message.edit_text(
-        "Хорошо! Ты можешь зарегистрироваться в другой раз, прописав <b>регистрация</b>.\n\nЧтобы узнать, что я могу, пропиши <b>помощь</b>!",
+        "ℹ️ Хорошо! Ты можешь зарегистрироваться в другой раз, прописав <b>регистрация</b>.\n\nЧтобы узнать, что я могу, пропиши <b>помощь</b>!",
         parse_mode=ParseMode.HTML,
     )
 
@@ -195,9 +195,13 @@ async def cmd_kill(message: Message) -> None:
 async def cmd_send(message: Message) -> None:
     await log_request(message)
     if message.from_user.id == 2087648271:
-        text = message.text;
+        text = message.text
         while len(text.split(" ")) < 3:
             text += " ."
+
+        if text.split(" ")[2] == ".":
+            await message.reply("Сообщение пусто!")
+            return
         address_id = text.split(" ")[1]
         msg = text.split(" ", 2)[2]
         try:
@@ -208,15 +212,19 @@ async def cmd_send(message: Message) -> None:
     else:
         ()
 
+
 @dp.message(Command("send_all"))
 async def cmd_send_all(message: Message) -> None:
     await log_request(message)
     if message.from_user.id == 2087648271:
-        text = message.text;
+        text = message.text
         while len(text.split(" ")) < 2:
             text += " ."
         msg = text.split(" ", 1)[1]
 
+        if text.split(" ")[1] == ".":
+            await message.reply("Сообщение пусто!")
+            return
         conn, cur = await db_connect()
         cur.execute("SELECT id FROM Chat")
         chats = cur.fetchall()
@@ -226,17 +234,24 @@ async def cmd_send_all(message: Message) -> None:
 
         await db_commit_close(conn, cur)
 
-        successful = 0;
-        failed = 0;
+        successful = 0
+        failed = 0
         for id in ids:
             try:
                 await bot.send_message(id, msg, parse_mode=ParseMode.HTML)
-                successful += 1;
+                successful += 1
             except:
-                failed += 1;
+                failed += 1
 
-
-        await message.reply("Отправлено (всего: " + str(len(ids)) + ", успешно: " + str(successful) + ", неудачно: " + str(failed) + ")")
+        await message.reply(
+            "Отправлено (всего: "
+            + str(len(ids))
+            + ", успешно: "
+            + str(successful)
+            + ", неудачно: "
+            + str(failed)
+            + ")"
+        )
         # try:
         #     await bot.send_message(address_id, msg, parse_mode=ParseMode.HTML)
         #     await message.reply("Отправлено")
