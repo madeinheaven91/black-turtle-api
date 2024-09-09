@@ -171,7 +171,7 @@ async def process_callback_exit(callback: CallbackQuery, state: FSMContext) -> N
     ignore_messages = False
     await state.clear()
     await callback.message.edit_text(
-        "ℹ️ Хорошо! Ты можешь зарегистрироваться в другой раз, прописав <b>регистрация</b>.\n\nЧтобы узнать, что я могу, пропиши <b>помощь</b>!",
+        "ℹ️ Хорошо! Вы можете зарегистрироваться в другой раз, прописав <b>регистрация</b>.\n\nЧтобы узнать, что я могу, пропишите <b>помощь</b>!",
         parse_mode=ParseMode.HTML,
     )
 
