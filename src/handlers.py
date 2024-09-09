@@ -3,6 +3,7 @@ from logging import error
 
 import requests
 from aiogram.types import Message
+from aiogram.enums import ParseMode
 
 from data import groups_csv
 from src.db import db_commit_close, db_connect
@@ -148,7 +149,7 @@ async def handle_exception(handler, message: Message, tokens: list[str]) -> None
         add_prefix = True
         match e:
             case s if isinstance(e, UnknownGroupError):
-                msg = "<b>Группа не найдена</b>"
+                msg = "<b>Группа не найдена</b>"
             case s if isinstance(e, DayError):
                 msg = "<b>Не понимаю, на какой день вы хотите получить расписание</b>"
             case s if isinstance(e, WeekError):
@@ -158,14 +159,17 @@ async def handle_exception(handler, message: Message, tokens: list[str]) -> None
             case s if isinstance(e, BellTypeError):
                 msg = "<b>Не понимаю, какие звонки вам нужны.</b>"
             case s if isinstance(e, GroupNotSelectedError):
-                msg = "Я не знаю, в какой ты группе! Пропиши /start, чтобы выбрать свою группу"
+                msg = "Вы не указали, в какой вы группе!\n\nПропишите <b>регистрация</b>, чтобы я знал, расписание какой группы вам нужно!"
             case _:
                 msg = exception_msg
                 add_prefix = False
         error(e)
         if add_prefix != False:
             msg = "⚠️ " + msg
-        await safe_message(message, msg)
+        try:
+            message.answer(msg, parse_mode=ParseMode.HTML)
+        except Exception as e:
+            error(e)
 
 
 async def handle_help(message: Message, tokens: list[str]) -> None:
