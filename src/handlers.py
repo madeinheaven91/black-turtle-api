@@ -7,7 +7,7 @@ from aiogram.enums import ParseMode
 
 from data import groups_csv
 from src.db import db_commit_close, db_connect
-from src.exceptions import (BellTypeError, DayError, GroupNotSelectedError,
+from src.exceptions import (BellTypeError, DayError, GroupNotSelectedError, UnknownGroupError,
                             UnknownTeacherError, WeekError)
 from src.keyboards import help_kb
 from src.message_strings import *
@@ -27,28 +27,36 @@ from src.utils import *
 
 async def handle_lessons(message: Message, tokens: list[str]) -> None:
     # Token identification
-    if tokens[1] not in groups_csv:
-        day_token = tokens[1]
-        week_token = tokens[2]
-    else:
+    try:
+        group_id = process_group_token(tokens[1])
         group_token = tokens[1]
         day_token = tokens[2]
+    except:
         week_token = tokens[3]
+        day_token = tokens[1]
+        week_token = tokens[2]
 
     if tokens[1] != day_token:  ### If the first token is group number
-        group_id = await process_group_token(group_token)
+        group_id = group_id[0]
         day_processed = process_date_token(day_token)
         query_date = process_week_token(week_token, day_processed[0], day_processed[1])
 
-        payload = gen_payload(group_id, query_date)
+        payload = gen_payload(StudyEntityType.GROUP, str(group_id), query_date)
 
         response = json.loads(
-            requests.post(schedule_url, json=payload, headers=req_headers).text
+            requests.post(group_url, json=payload, headers=req_headers).text
         )
 
-        msg = lessons_string(response, query_date)
+        msg = lessons_string(response, query_date, entity_type=StudyEntityType["group"])
         await safe_message(message, msg)
     else:  ### If the first token is not group number
+        conn, cur = await db_connect()
+
+        cur.execute("""
+        SELECT chat.study_entity_type from Chat where id=%s
+        """, (message.chat.id,))
+        study_entity_type = StudyEntityType[cur.fetchone()[0].upper()];
+
         try:
             day_processed = process_date_token(day_token)
             query_date = process_week_token(
@@ -57,7 +65,6 @@ async def handle_lessons(message: Message, tokens: list[str]) -> None:
         except:
             raise UnknownGroupError("Unknown group (" + day_token + ")")
 
-        conn, cur = await db_connect()
         cur.execute(
             """SELECT chat.study_entity_id FROM Chat where id=%s""",
             (message.chat.id,),
@@ -73,13 +80,18 @@ async def handle_lessons(message: Message, tokens: list[str]) -> None:
 
         await db_commit_close(conn, cur)
 
-        payload = gen_payload(group_id, query_date)
+        payload = gen_payload(study_entity_type, group_id, query_date)
 
+        match study_entity_type:
+            case StudyEntityType.GROUP:
+                schedule_url = group_url
+            case StudyEntityType.TEACHER:
+                schedule_url = teacher_url
         response = json.loads(
             requests.post(schedule_url, json=payload, headers=req_headers).text
         )
 
-        msg = lessons_string(response, query_date)
+        msg = lessons_string(response, query_date, study_entity_type)
         await safe_message(message, msg)
         return
 
@@ -98,7 +110,7 @@ async def handle_fio(message: Message, tokens: list[str]) -> None:
 
     res = "👨‍🏫 <b>Найдены преподаватели</b>:\n"
     for teacher in teachers:
-        res += f" - {teacher[0]} {teacher[1]} {teacher[2]}\n"
+        res += f" - {teacher[1]} {teacher[2]} {teacher[3]}\n"
     res += "\n<i>Если в базе не хватает преподавателя, пишите @madeinheaven91</i>"
     await safe_message(message, res)
 

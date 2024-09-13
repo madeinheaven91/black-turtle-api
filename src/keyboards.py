@@ -23,13 +23,20 @@ help_kb = InlineKeyboardMarkup(
     ]
 )
 
-registration_end_kb = InlineKeyboardMarkup(
+reg_group_or_teacher_builder = InlineKeyboardBuilder()
+reg_group_or_teacher_builder.add(InlineKeyboardButton(text="Группы", callback_data="reg_group"))
+reg_group_or_teacher_builder.add(InlineKeyboardButton(text="Преподавателя", callback_data="reg_teacher"))
+reg_group_or_teacher_kb = reg_group_or_teacher_builder.as_markup(resize_keyboard=True)
+
+
+
+reg_end_kb = InlineKeyboardMarkup(
     inline_keyboard=[
-        [InlineKeyboardButton(text="Отмена", callback_data="registration_end")]
+        [InlineKeyboardButton(text="Отмена", callback_data="reg_end")]
     ]
 )
 
 greeting_builder = InlineKeyboardBuilder()
-greeting_builder.add(InlineKeyboardButton(text="Да, давай!", callback_data="yes"))
-greeting_builder.add(InlineKeyboardButton(text="Нет, спасибо.", callback_data="no"))
+greeting_builder.add(InlineKeyboardButton(text="Да, давай!", callback_data="reg_yes"))
+greeting_builder.add(InlineKeyboardButton(text="Нет, спасибо.", callback_data="reg_no"))
 greeting_kb = greeting_builder.as_markup(resize_keyboard=True)

@@ -14,15 +14,19 @@ from dotenv import load_dotenv
 from data import *
 from src.db import db_commit_close, db_connect
 from src.dispatcher import *
+from src.exceptions import UnknownGroupError
 from src.handlers import (handle_bell, handle_exception, handle_fio,
                           handle_groups, handle_help, handle_lessons)
 from src.keyboards import *
 from src.state_machines import *
+from src.tokens.group import process_group_token
+from src.tokens.teacher import process_teacher_token
 from src.utils import log_request, safe_message
 
 dp = Dispatcher()
-router = Router(name=__name__)
+router= Router(name=__name__)
 
+ignored_chats: set[str] = {""};
 
 load_dotenv()
 TOKEN = getenv("BOT_TOKEN")
@@ -38,8 +42,6 @@ bot = Bot(
     ),
 )
 
-ignore_messages = False
-
 ################
 ###          ###
 ### COMMANDS ###
@@ -49,7 +51,7 @@ ignore_messages = False
 
 @router.message(F.text)
 async def msg_handler(message: Message) -> None:
-    if ignore_messages:
+    if message.chat.id in ignored_chats:
         return
     ## Initialize tokens
     tokens = re.sub(" +", " ", message.text.lower().strip()).split(" ")
@@ -77,7 +79,7 @@ async def msg_handler(message: Message) -> None:
 @dp.message(Command("start"))
 async def cmd_start(message: Message) -> None:
     await log_request(message)
-    ignore_messages = True
+    ignored_chats.add(message.chat.id)
 
     # Database stuff
     conn, cur = await db_connect()
@@ -87,33 +89,25 @@ async def cmd_start(message: Message) -> None:
     if exists is None:
         chat_id = message.chat.id
         chat_type = message.chat.type
-        cur.execute(
-            """
-                INSERT INTO Chat (id, type)
-                VALUES (%s, %s) 
-                ON CONFLICT (id) DO NOTHING
-                """,
-            (chat_id, chat_type)
-        )
+
+        name = message.chat.title
         if chat_type == "private":
-            name = message.from_user.full_name
             username = message.from_user.username
             cur.execute(
                 """
-                    INSERT INTO TelegramUser (id, name, username)
-                    VALUES (%s, %s, %s) 
+                    INSERT INTO Chat (id, name, username, type)
+                    VALUES (%s, %s, %s, %s) 
                     ON CONFLICT (id) DO NOTHING
                     """,
-                (chat_id, name, username)
+                (chat_id, name, username, chat_type)
             )
         else:
-            title = message.chat.title
             cur.execute(
                 """
-                    INSERT INTO TelegramGroup (id, title)
-                    VALUES (%s, %s) 
+                    INSERT INTO Chat (id, name, type)
+                    VALUES (%s, %s, %s) 
                     """,
-                (chat_id, title)
+                (chat_id, name, chat_type)
             )
     await db_commit_close(conn, cur)
 
@@ -126,17 +120,29 @@ async def cmd_start(message: Message) -> None:
         logging.error(e)
 
 
-@dp.callback_query(F.data == "yes")
-async def registration_callback(callback: CallbackQuery, state: FSMContext) -> None:
-    ignore_messages = False
-    await callback.message.edit_text("❔ Введите номер своей группы")
-    await state.set_state(Registration.select)
+@dp.callback_query(F.data == "reg_yes")
+async def reg_yes(callback: CallbackQuery) -> None:
+    await callback.message.edit_text("❔ Вы хотите узнавать пары <b>группы</b> или <b>преподавателя</b>?", parse_mode=ParseMode.HTML, reply_markup=reg_group_or_teacher_kb)
+    await callback.answer()
+
+@dp.callback_query(F.data == "reg_group")
+async def reg_choose_group_callback(callback: CallbackQuery, state: FSMContext) -> None:
+    if ignored_chats.__contains__(callback.message.chat.id): ignored_chats.remove(callback.message.chat.id)
+    await callback.message.edit_text("❔ Введите номер группы", parse_mode=ParseMode.HTML)
+    await state.set_state(Registration.select_group)
+    await callback.answer()
+
+@dp.callback_query(F.data == "reg_teacher")
+async def reg_choose_teacher_callback(callback: CallbackQuery, state: FSMContext) -> None:
+    if ignored_chats.__contains__(callback.message.chat.id): ignored_chats.remove(callback.message.chat.id)
+    await callback.message.edit_text("❔ Введите фамилию преподавателя", parse_mode=ParseMode.HTML)
+    await state.set_state(Registration.select_teacher)
     await callback.answer()
 
 
-@dp.callback_query(F.data == "no")
-async def process_callback_no(callback: CallbackQuery) -> None:
-    ignore_messages = False
+@dp.callback_query(F.data == "reg_no")
+async def reg_no(callback: CallbackQuery) -> None:
+    if ignored_chats.__contains__(callback.message.chat.id): ignored_chats.remove(callback.message.chat.id)
     await callback.message.edit_text(
         "ℹ️ Хорошо! Вы можете зарегистрироваться в другой раз, прописав <b>регистрация</b>.\n\nЧтобы узнать, что я могу, пропишите <b>помощь</b>!",
         parse_mode=ParseMode.HTML,
@@ -144,26 +150,28 @@ async def process_callback_no(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
-@dp.message(Registration.select)
+@dp.message(Registration.select_group)
 async def select_group(message: Message, state: FSMContext) -> None:
+    await log_request(message)
     try:
-        group_id = groups_csv[message.text]
+        group_id = process_group_token(message.text)[0]
     except Exception:
-        await state.set_state(Registration.select)
+        await state.set_state(Registration.select_group)
         await message.answer(
             """⚠️ <b>Такой группы нет...</b>
 
 Отправьте номер своей группы еще раз.""",
-            reply_markup=registration_end_kb,
+            reply_markup=reg_end_kb,
         )
-        return
+        logging.error("Unknown group (" + message.text + ")");
+        return;
 
     conn, cur = await db_connect()
     cur.execute(
         """UPDATE Chat
-    SET study_entity_id=%s
+    SET study_entity_id=%s, study_entity_type=%s
     WHERE id=%s""",
-        (group_id, message.chat.id),
+        (group_id,"group",message.chat.id),
     )
     await db_commit_close(conn, cur)
 
@@ -178,18 +186,53 @@ async def select_group(message: Message, state: FSMContext) -> None:
 
     await state.clear()
 
+@dp.message(Registration.select_teacher)
+async def select_teacher(message: Message, state: FSMContext) -> None:
+    await log_request(message)
+    try:
+        teachers = process_teacher_token(message.text)
+        if len(teachers) == 1:
+            teacher_id = teachers[0][0]
+        else:
+            await message.answer("Найдено много преподов...")
+            return;
+    except Exception:
+        await state.set_state(Registration.select_teacher)
+        await message.answer(
+            """⚠️ <b>Такого преподавателя нет...</b>
 
-@dp.message(F.text.lower() == "регистрация")
-async def registration(message: Message, state: FSMContext) -> None:
-    await message.answer("❔ Введите номер своей группы")
-    await state.set_state(Registration.select)
+Отправьте фамилию еще раз.""",
+            reply_markup=reg_end_kb,
+        )
+        logging.error("Unknown teacher (" + message.text + ")");
+        return;
 
     conn, cur = await db_connect()
-    cur.execute("""SELECT id from Chat WHERE id=%s""", (message.chat.id,))
-    exists = cur.fetchone()
+    cur.execute(
+        """UPDATE Chat
+    SET study_entity_id=%s, study_entity_type=%s
+    WHERE id=%s""",
+        (teacher_id,"teacher",message.chat.id),
+    )
+    await db_commit_close(conn, cur)
 
-    ### DELETE AFTER SOME TIME
-    ### NEEDED FOR LEGACY USERS
+    try:
+        await message.answer(
+            """✅ Отлично, преподаватель выбран! Теперь вы можете смотреть его пары!\n\nЧтобы узнать, что я могу, пропишите <b>помощь</b>!""",
+            parse_mode=ParseMode.HTML,
+            reply_markup=default_kb,
+        )
+    except Exception as e:
+        logging.error(e)
+
+    await state.clear()
+
+
+@dp.message(F.text.lower() == "регистрация")
+async def registration(message: Message) -> None:
+    await log_request(message)
+    await message.answer("❔ Вы хотите узнавать пары <b>группы</b> или <b>преподавателя</b>?", parse_mode=ParseMode.HTML, reply_markup=reg_group_or_teacher_kb)
+
     conn, cur = await db_connect()
     cur.execute("""SELECT id from Chat WHERE id=%s""", (message.chat.id,))
     exists = cur.fetchone()
@@ -197,43 +240,31 @@ async def registration(message: Message, state: FSMContext) -> None:
     if exists is None:
         chat_id = message.chat.id
         chat_type = message.chat.type
-        cur.execute(
-            """
-                INSERT INTO Chat (id, type)
-                VALUES (%s, %s) 
-                ON CONFLICT (id) DO NOTHING
-                """,
-            (chat_id, chat_type)
-        )
+        name = message.chat.title
         if chat_type == "private":
-            name = message.from_user.full_name
             username = message.from_user.username
             cur.execute(
                 """
-                    INSERT INTO TelegramUser (id, name, username)
-                    VALUES (%s, %s, %s) 
+                    INSERT INTO Chat (id, type, name, username)
+                    VALUES (%s, %s, %s, %s) 
                     ON CONFLICT (id) DO NOTHING
                     """,
-                (chat_id, name, username)
+                (chat_id, chat_type, name, username)
             )
         else:
-            title = message.chat.title
             cur.execute(
                 """
-                    INSERT INTO TelegramGroup (id, title)
-                    VALUES (%s, %s) 
+                    INSERT INTO Chat (id, type, name)
+                    VALUES (%s, %s, %s) 
                     """,
-                (chat_id, title)
+                (chat_id, chat_type, name)
             )
     await db_commit_close(conn, cur)
 
 
-
-
-
-@dp.callback_query(F.data == "registration_end")
+@dp.callback_query(F.data == "reg_end")
 async def process_callback_exit(callback: CallbackQuery, state: FSMContext) -> None:
-    ignore_messages = False
+    if ignored_chats.__contains__(callback.message.chat.id): ignored_chats.remove(callback.message.chat.id)
     await state.clear()
     await callback.message.edit_text(
         "ℹ️ Хорошо! Вы можете зарегистрироваться в другой раз, прописав <b>регистрация</b>.\n\nЧтобы узнать, что я могу, пропишите <b>помощь</b>!",

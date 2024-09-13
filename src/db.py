@@ -34,28 +34,15 @@ async def db_init() -> None:
     conn, cur = await db_connect()
 
     cur.execute(
-        """CREATE TABLE IF NOT EXISTS Chat (
+        """
+    CREATE TABLE IF NOT EXISTS Chat (
     id BIGINT PRIMARY KEY UNIQUE,
+    name VARCHAR(32),
+    username VARCHAR(32) NULL,
     type VARCHAR(16),
     is_banned BOOLEAN DEFAULT FALSE,
-    study_entity_id VARCHAR(255) NULL
-);"""
-    )
-
-    cur.execute(
-        """CREATE TABLE IF NOT EXISTS TelegramUser (
-    id BIGINT PRIMARY KEY UNIQUE,
-    name VARCHAR(64),
-    username VARCHAR(64),
-    FOREIGN KEY (id) REFERENCES Chat(id)
-);"""
-    )
-
-    cur.execute(
-        """CREATE TABLE IF NOT EXISTS TelegramGroup (
-    id BIGINT PRIMARY KEY UNIQUE,
-    title VARCHAR(64),
-    FOREIGN KEY (id) REFERENCES Chat(id)
+    study_entity_id BIGINT NULL,
+    study_entity_type VARCHAR(16) NULL
 );"""
     )
 

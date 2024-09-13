@@ -1,13 +1,14 @@
 import csv
 from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum
 
 from aiogram.types import Message
 
 from src.db import db_commit_close, db_connect
-from src.exceptions import UnknownGroupError
 
-schedule_url = "https://schedule.mstimetables.ru/api/publications/group/lessons"
+group_url = "https://schedule.mstimetables.ru/api/publications/group/lessons"
+teacher_url = "https://schedule.mstimetables.ru/api/publications/teacher/lessons"
 req_headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/112.0",
     "Content-Type": "application/json",
@@ -15,10 +16,16 @@ req_headers = {
 }
 
 
+class StudyEntityType(Enum):
+    GROUP = "group"
+    TEACHER = "teacher"
+
+
 @dataclass()
 class Lesson:
     name: str
     teacher: str
+    group: str
     cabinet: str
     start_time: int
     end_time: int
@@ -29,6 +36,7 @@ class Lesson:
         self,
         name,
         teacher,
+        group,
         cabinet,
         start_time,
         end_time,
@@ -37,6 +45,7 @@ class Lesson:
     ):
         self.name = name
         self.teacher = teacher
+        self.group = group
         self.cabinet = cabinet
         self.start_time = start_time
         self.end_time = end_time
@@ -55,6 +64,11 @@ def json_to_lesson(data) -> Lesson:
     else:
         teacher = data.get("teachers")[0].get("fio")
 
+    if data.get("unionGroups")[0].get("group") is None:
+        group = "<i>Группа не указана</i>"
+    else:
+        group = data.get("unionGroups")[0].get("group").get("name")
+
     if data.get("cabinet") is None:
         cabinet = "<i>Кабинет не указан</i>"
     else:
@@ -68,6 +82,7 @@ def json_to_lesson(data) -> Lesson:
     return Lesson(
         name,
         teacher,
+        group,
         cabinet,
         start_time,
         end_time,
@@ -80,6 +95,7 @@ def combine_simultaneous(les1: Lesson, les2: Lesson) -> Lesson:
     return Lesson(
         name=les1.name,
         teacher=les1.teacher + " / " + les2.teacher,
+        group=les1.group,
         cabinet=les1.cabinet + " / " + les2.cabinet,
         start_time=les1.start_time,
         end_time=les1.end_time,
@@ -110,63 +126,126 @@ def collapse(lessons: list[Lesson]) -> list[Lesson]:
     return res
 
 
-def lessons_string(response, query_date: datetime.date):
+def lessons_string(response, query_date: datetime.date, entity_type: StudyEntityType):
     lessons = response.get("lessons")
-    if lessons is None:
-        res = (
-            "<b>"
-            + response.get("group").get("name")
-            + "\n"
-            + str(query_date.strftime("%A"))
-            + "\n"
-            + str(query_date.strftime("%d.%m.%y"))
-            + "</b>\n\n"
-            + "————| Нет расписания |————\n\n"
-            + "<b>На этот день распиания пока нет...</b>"
-        )
-        return res
 
-    temp = []
-    for lesson in lessons:
-        if lesson.get("weekday") == query_date.weekday() + 1:
-            temp.append(json_to_lesson(lesson))
+    match entity_type:
+        case StudyEntityType.GROUP:
+            name = response.get("group").get("name")
 
-    if len(temp) == 0:
-        res = (
-            "<b>"
-            + response.get("group").get("name")
-            + "\n"
-            + str(query_date.strftime("%A"))
-            + "\n"
-            + str(query_date.strftime("%d.%m.%y"))
-            + "</b>\n\n"
-            + "———| Нет расписания |———\n\n"
-            + "<b>На этот день распиания пока нет...</b>"
-        )
-        return res
-    temp = sorted(temp, key=lambda x: x.start_time)
-    lessons_today = collapse(temp)
+            if lessons is None:
+                res = (
+                    "<b>"
+                    + name
+                    + "\n"
+                    + str(query_date.strftime("%A"))
+                    + "\n"
+                    + str(query_date.strftime("%d.%m.%y"))
+                    + "</b>\n\n"
+                    + "————| Нет расписания |————\n\n"
+                    + "<b>На этот день распиания пока нет...</b>"
+                )
+                return res
 
-    res = (
-        "<b>"
-        + response.get("group").get("name")
-        + "\n"
-        + str(query_date.strftime("%A, "))
-        + str(len(lessons_today))
-        + " "
-        + lessons_declension(len(lessons_today))
-        + "\n"
-        + str(query_date.strftime("%d.%m.%y"))
-        + "</b>\n\n"
-    )
-    for lesson in lessons_today:
-        res += "——————| " + str(lesson.index) + " урок" + " |——————\n\n"
-        res += "⏳ " + lesson.time_str + "\n"
-        res += "📖 <b>" + lesson.name + "</b>\n"
-        res += "🎓 " + lesson.teacher + "\n"
-        res += "🔑 " + lesson.cabinet + "\n\n"
+            temp = []
+            for lesson in lessons:
+                if lesson.get("weekday") == query_date.weekday() + 1:
+                    temp.append(json_to_lesson(lesson))
 
-    return res
+            if len(temp) == 0:
+                res = (
+                    "<b>"
+                    + name
+                    + "\n"
+                    + str(query_date.strftime("%A"))
+                    + "\n"
+                    + str(query_date.strftime("%d.%m.%y"))
+                    + "</b>\n\n"
+                    + "———| Нет расписания |———\n\n"
+                    + "<b>На этот день распиания пока нет...</b>"
+                )
+                return res
+            temp = sorted(temp, key=lambda x: x.start_time)
+            lessons_today = collapse(temp)
+
+            res = (
+                "<b>"
+                + name
+                + "\n"
+                + str(query_date.strftime("%A, "))
+                + str(len(lessons_today))
+                + " "
+                + lessons_declension(len(lessons_today))
+                + "\n"
+                + str(query_date.strftime("%d.%m.%y"))
+                + "</b>\n\n"
+            )
+            for lesson in lessons_today:
+                res += "——————| " + str(lesson.index) + " урок" + " |——————\n\n"
+                res += "⏳ " + lesson.time_str + "\n"
+                res += "📖 <b>" + lesson.name + "</b>\n"
+                res += "🎓 " + lesson.teacher + "\n"
+                res += "🔑 " + lesson.cabinet + "\n\n"
+
+            return res
+        case StudyEntityType.TEACHER:
+            name = response.get("teacher").get("fio")
+
+            if lessons is None:
+                res = (
+                    "<b>"
+                    + name
+                    + "\n"
+                    + str(query_date.strftime("%A"))
+                    + "\n"
+                    + str(query_date.strftime("%d.%m.%y"))
+                    + "</b>\n\n"
+                    + "————| Нет расписания |————\n\n"
+                    + "<b>На этот день распиания пока нет...</b>"
+                )
+                return res
+
+            temp = []
+            for lesson in lessons:
+                if lesson.get("weekday") == query_date.weekday() + 1:
+                    temp.append(json_to_lesson(lesson))
+
+            if len(temp) == 0:
+                res = (
+                    "<b>"
+                    + name
+                    + "\n"
+                    + str(query_date.strftime("%A"))
+                    + "\n"
+                    + str(query_date.strftime("%d.%m.%y"))
+                    + "</b>\n\n"
+                    + "———| Нет расписания |———\n\n"
+                    + "<b>На этот день распиания пока нет...</b>"
+                )
+                return res
+            temp = sorted(temp, key=lambda x: x.start_time)
+            lessons_today = collapse(temp)
+
+            res = (
+                "<b>"
+                + name
+                + "\n"
+                + str(query_date.strftime("%A, "))
+                + str(len(lessons_today))
+                + " "
+                + lessons_declension(len(lessons_today))
+                + "\n"
+                + str(query_date.strftime("%d.%m.%y"))
+                + "</b>\n\n"
+            )
+            for lesson in lessons_today:
+                res += "——————| " + str(lesson.index) + " урок" + " |——————\n\n"
+                res += "⏳ " + lesson.time_str + "\n"
+                res += "📖 <b>" + lesson.name + "</b>\n"
+                res += "🎓 " + lesson.group + "\n"
+                res += "🔑 " + lesson.cabinet + "\n\n"
+
+            return res
 
 
 async def log_request(message: Message):
@@ -175,11 +254,11 @@ async def log_request(message: Message):
 
     if is_group:
         print(
-            f"{datetime.now().strftime('| %d.%m.%y | %H:%M:%S |')} {name} ({str(message.from_user.username)}): {str(message.text)}"
+            f"{datetime.now().strftime('%d.%m.%y | %H:%M:%S |')} {name} ({str(message.from_user.username)}, {str(message.chat.id)}): {str(message.text)}"
         )
     else:
         print(
-            f"{datetime.now().strftime('| %d.%m.%y | %H:%M:%S |')} {name} ({str(message.from_user.username)}): {str(message.text)}"
+            f"{datetime.now().strftime('%d.%m.%y | %H:%M:%S |')} {name} ({str(message.from_user.username)}, {str(message.chat.id)}): {str(message.text)}"
         )
 
     conn, cur = await db_connect()
@@ -187,23 +266,21 @@ async def log_request(message: Message):
     if is_group:
         cur.execute(
             """
-                    UPDATE TelegramGroup 
-                    SET title=%s
+                    UPDATE Chat 
+                    SET name=%s
                     WHERE id=%s
                     """,
-            (name,message.chat.id),
+            (name, message.chat.id),
         )
     else:
         cur.execute(
             """
-                    UPDATE TelegramUser 
-                    SET name=%s
+                    UPDATE Chat 
+                    SET name=%s, username=%s
                     WHERE id=%s
                     """,
-            (name,message.from_user.id),
+            (name, message.from_user.username, message.from_user.id),
         )
-
-
 
     await db_commit_close(conn, cur)
 
@@ -215,9 +292,14 @@ async def safe_message(message: Message, msg: str) -> None:
         print(e)
 
 
-def gen_payload(group_id: str, query_date: datetime.date):
-    return {
-        "groupId": group_id,
-        "date": str(query_date),
-        "publicationId": "45fc8ddd-35e2-4d8e-9da1-a081a8edc11d",
-    }
+def gen_payload(type: StudyEntityType, id: str, query_date: datetime.date):
+    res = dict()
+    match type:
+        case StudyEntityType.GROUP:
+            res["groupId"] = id
+        case StudyEntityType.TEACHER:
+            res["teacherId"] = id
+
+    res["date"] = str(query_date)
+    res["publicationId"] = "45fc8ddd-35e2-4d8e-9da1-a081a8edc11d"
+    return res
